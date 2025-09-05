@@ -7,3 +7,4 @@ backend/.env
 *.log
 dist/
 build/
+*.tsbuildinfo
