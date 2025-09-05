@@ -12,6 +12,20 @@ import { Recommendation } from '@/lib/validation';
 type OralExample = string | { text?: string; content?: string };
 type WithExamples = { examples?: OralExample[] };
 
+// ---- priority types & helpers ----
+export const PRIORITIES = ['Critical', 'High', 'Medium', 'Low'] as const;
+export type Priority = typeof PRIORITIES[number];
+
+export const priorityColors: Record<Priority, string> = {
+  Critical: 'bg-red-500',
+  High: 'bg-orange-500',
+  Medium: 'bg-yellow-500',
+  Low: 'bg-gray-500'
+};
+
+const isPriority = (x: unknown): x is Priority =>
+  typeof x === 'string' && (PRIORITIES as readonly string[]).includes(x);
+
 interface RecommendationsListProps {
   recommendations: Recommendation[];
   topOpportunities?: {
@@ -21,8 +35,13 @@ interface RecommendationsListProps {
   };
 }
 
+// 局部补充类型（保留 WithExamples）
+type RecommendationItem = WithExamples & {
+  calculatedPriority?: unknown; // 后端可能返回任意，需要本地校验
+};
+
 // 前端派生优先级计算
-const calculatePriority = (rec: any): 'Critical' | 'High' | 'Medium' | 'Low' => {
+const calculatePriority = (rec: any): Priority => {
   const impact = parseFloat(rec.expected_lift || rec.impact || '0');
   const effortMap: Record<string, number> = {
     simple: 1,
@@ -41,13 +60,6 @@ const calculatePriority = (rec: any): 'Critical' | 'High' | 'Medium' | 'Low' => 
   return 'Low';
 };
 
-const priorityColors = {
-  Critical: 'bg-red-500',
-  High: 'bg-orange-500',
-  Medium: 'bg-yellow-500',
-  Low: 'bg-gray-500'
-};
-
 export const RecommendationsList: React.FC<RecommendationsListProps> = ({
   recommendations,
   topOpportunities
@@ -58,11 +70,11 @@ export const RecommendationsList: React.FC<RecommendationsListProps> = ({
   const sortedRecommendations = useMemo(() => {
     const withPriority = recommendations.map(rec => ({
       ...rec,
-      calculatedPriority: rec.priority || calculatePriority(rec)
+      calculatedPriority: isPriority(rec.priority) ? rec.priority : calculatePriority(rec)
     }));
 
     // 按优先级排序
-    const priorityOrder = { Critical: 0, High: 1, Medium: 2, Low: 3 };
+    const priorityOrder: Record<Priority, number> = { Critical: 0, High: 1, Medium: 2, Low: 3 };
     return withPriority.sort((a, b) =>
       priorityOrder[a.calculatedPriority] - priorityOrder[b.calculatedPriority]
     );
@@ -157,7 +169,7 @@ export const RecommendationsList: React.FC<RecommendationsListProps> = ({
         {/* 推荐列表 - 使用Accordion */}
         {sortedRecommendations.length > 0 ? (
           <Accordion type="multiple" defaultValue={['rec-0']} className="space-y-2">
-            {sortedRecommendations.map((rec: WithExamples & any, index) => {
+            {sortedRecommendations.map((rec: RecommendationItem, index) => {
               // 安全提取 oral examples
               const rawOral = (rec as WithExamples).examples ?? [];
               const oralExamples = Array.isArray(rawOral)
@@ -180,6 +192,13 @@ export const RecommendationsList: React.FC<RecommendationsListProps> = ({
 
               const hasExamples = oralExamples.length > 0 || textContent;
 
+              // 归一化优先级：非法值回退到 'Medium'
+              const priority: Priority = isPriority(rec.calculatedPriority)
+                ? rec.calculatedPriority
+                : 'Medium';
+
+              const priorityColor = priorityColors[priority];
+
               return (
                 <AccordionItem key={index} value={`rec-${index}`} className="border rounded-lg">
                   <AccordionTrigger className="hover:no-underline px-4">
@@ -187,9 +206,9 @@ export const RecommendationsList: React.FC<RecommendationsListProps> = ({
                       <div className="flex-1 space-y-2">
                         <div className="flex items-center gap-2">
                           <Badge
-                            className={`${priorityColors[rec.calculatedPriority]} text-white`}
+                            className={`${priorityColor} text-white`}
                           >
-                            {rec.calculatedPriority}
+                            {priority}
                           </Badge>
 
                           {rec.impact && (
