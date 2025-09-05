@@ -1,0 +1,12 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Frontend /api/* proxy to Render backend
+[[redirects]]
+  from = "/api/*"
+  to   = "https://videoanalyzersimple.onrender.com/api/:splat"
+  status = 200
