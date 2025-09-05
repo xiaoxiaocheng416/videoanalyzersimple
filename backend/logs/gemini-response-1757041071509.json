@@ -1,0 +1,221 @@
+{
+  "overview": {
+    "grade": "B",
+    "score": 72,
+    "confidence": "70%",
+    "summary": "This video uses a strong problem-aggregation and cost-saving structure, but is held back by a delayed product reveal and an impersonal presentation, capping its potential at a 'B' grade.",
+    "main_issue": "The actual product is not shown in the first 3 seconds, which is a critical flaw that limits initial engagement and brand connection, triggering a 'B' grade ceiling."
+  },
+  "pillars": {
+    "hook_0_3s": 8,
+    "display_clarity": 9,
+    "creator_trust": 7,
+    "cta_effectiveness": 9
+  },
+  "flags": {
+    "fatal_flaw": false,
+    "upper_bound_c": false,
+    "upper_bound_b": true,
+    "penalties": [
+      "-5 hard penalty for high saturation without strong differentiation"
+    ]
+  },
+  "three_dimensional": {
+    "market_saturation": {
+      "score": 9,
+      "level": "high",
+      "reason": "The supplement and gummy category is extremely crowded on TikTok. The 'If you have X, take Y' format is also very common."
+    },
+    "product_potential": {
+      "grade": "A",
+      "reason": "The product addresses multiple, easily understood pain points (bloating, cravings, energy), making it highly relatable and suitable for a problem-solution video format."
+    },
+    "creator_performance": {
+      "score": 7,
+      "strengths": [
+        "Clear, fast-paced voice-over",
+        "Logical and easy-to-follow structure"
+      ],
+      "weaknesses": [
+        "Impersonal (hand only, no face shown)",
+        "Lacks personal story or testimony"
+      ]
+    }
+  },
+  "timeline": [
+    {
+      "segment": "0-3s",
+      "score": 8,
+      "issue": "The actual product (Goli bottle) is not shown.",
+      "risk": "Viewers may not connect the concept to a real product, leading to drop-off. Triggers a 'B' grade ceiling.",
+      "fix_hint": "Briefly show the Goli bottle in the opening shot before focusing on the cups."
+    },
+    {
+      "segment": "3-15s",
+      "score": 9,
+      "issue": "Extremely rapid-fire pacing.",
+      "risk": "Potential for information overload, though it aligns with the fast pace of the platform.",
+      "fix_hint": "The pacing is likely intentional; no change needed unless completion rates are low."
+    },
+    {
+      "segment": "15-25s",
+      "score": 9,
+      "issue": "The cost-saving premise ($158) is based on buying 5 separate, full-sized supplements.",
+      "risk": "Some savvy viewers might find the comparison slightly exaggerated, slightly eroding trust.",
+      "fix_hint": "Frame it as 'could cost you over $150' to sound less definitive and more plausible."
+    },
+    {
+      "segment": "25-30s",
+      "score": 9,
+      "issue": "The CTA is strong but relies heavily on a limited-time sale.",
+      "risk": "Performance will drop significantly once the TikTok Shop sale ends.",
+      "fix_hint": "Create an evergreen version that focuses more on in-store vs. standard online price."
+    }
+  ],
+  "recommendations": [
+    {
+      "problem": "0-3s: The actual product is not shown, only a conceptual representation (cups), which violates a key principle for immediate clarity and triggers a grade ceiling.",
+      "solution": "Reshoot the first 3 seconds to include the Goli bottle. Hold it briefly while delivering the opening line before setting it down to point at the first cup.",
+      "examples": {
+        "oral": [
+          {
+            "text": "I was so tired of waking up bloated, so I started taking this...",
+            "source": {
+              "type": "pain_point",
+              "key": "tired_of___so_i"
+            }
+          },
+          {
+            "text": "This $10 item literally replaced 5 of my other supplements...",
+            "source": {
+              "type": "curiosity",
+              "key": "this_10_item"
+            }
+          }
+        ],
+        "text": {
+          "text": "This will sell out again... run.",
+          "source": {
+            "type": "text_on_screen",
+            "key": "this_will_sell_out"
+          }
+        }
+      },
+      "difficulty": "medium",
+      "expected_lift": "+15%~+25%"
+    },
+    {
+      "problem": "Entire video: The presentation is impersonal (hand only), which functions like a standard ad and builds minimal creator trust.",
+      "solution": "Incorporate a face-to-camera shot around the 20-second mark when revealing the Goli bottles. This transition builds a human connection and adds authenticity.",
+      "examples": {
+        "oral": [
+          {
+            "text": "To the girl on my FYP who told me about these Goli gummies... THANK YOU!",
+            "source": {
+              "type": "social_proof",
+              "key": "to_the_girl_on_fyp"
+            }
+          },
+          {
+            "text": "So instead of all that, this is what I actually take. It feels like such a simple hack.",
+            "source": {
+              "type": "social_proof",
+              "key": "working_for_me"
+            }
+          }
+        ],
+        "text": {
+          "text": "TikTok made me buy it — worth every penny.",
+          "source": {
+            "type": "text_on_screen",
+            "key": "tiktok_made_me_buy_it"
+          }
+        }
+      },
+      "difficulty": "reshoot",
+      "expected_lift": "+20%~+30%"
+    },
+    {
+      "problem": "30-40s: The value proposition relies solely on a temporary sale, limiting the video's long-term effectiveness.",
+      "solution": "Strengthen the core value proposition by emphasizing the convenience and taste, in addition to the price. This makes the product appealing even without a deep discount.",
+      "examples": {
+        "oral": [
+          {
+            "text": "The best part is they taste so good you'll actually remember to take them.",
+            "source": {
+              "type": "pain_point",
+              "key": "tired_of___so_i"
+            }
+          },
+          {
+            "text": "I was sick of swallowing pills, so finding these was honestly a game changer for my routine.",
+            "source": {
+              "type": "pain_point",
+              "key": "sick_of___so_i"
+            }
+          }
+        ],
+        "text": {
+          "text": "I wish I found this sooner 😩",
+          "source": {
+            "type": "text_on_screen",
+            "key": "wish_i_found_sooner"
+          }
+        }
+      },
+      "difficulty": "simple",
+      "expected_lift": "+10%~+15%"
+    }
+  ],
+  "forecast": {
+    "views_range": "5x–10x creator_avg",
+    "gmv_range": "$800–$1200 per 100k views",
+    "pass_probability": "15%-30%"
+  },
+  "insights": {
+    "what_worked": "The video's core logic is its greatest strength. It effectively bundles multiple common problems and presents a single, cost-effective solution, which is a powerful e-commerce narrative.",
+    "what_failed": "The fatal weakness is failing to show the product within the first 3 seconds. This structural flaw automatically limits the video's performance ceiling, regardless of how good the rest of it is."
+  },
+  "data_quality": {
+    "completeness": 0.6,
+    "notes": [
+      "Confidence is lowered and forecast ranges are estimates due to missing creator performance data (avg. views, GMV, AOV)."
+    ]
+  },
+  "knowledge_refs": [
+    {
+      "section": "hook.pain_point",
+      "ids": [
+        "tired_of___so_i",
+        "sick_of___so_i"
+      ]
+    },
+    {
+      "section": "hook.curiosity",
+      "ids": [
+        "this_10_item"
+      ]
+    },
+    {
+      "section": "hook.social_proof",
+      "ids": [
+        "to_the_girl_on_fyp",
+        "working_for_me"
+      ]
+    },
+    {
+      "section": "text_on_screen",
+      "ids": [
+        "this_will_sell_out",
+        "tiktok_made_me_buy_it",
+        "wish_i_found_sooner"
+      ]
+    }
+  ],
+  "model_meta": {
+    "detail_level": "full",
+    "model_version": "v1.0",
+    "seed": 42,
+    "created_at": "2023-10-27T10:00:00Z"
+  }
+}

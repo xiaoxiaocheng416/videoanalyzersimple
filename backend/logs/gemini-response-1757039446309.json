@@ -1,0 +1,216 @@
+{
+  "overview": {
+    "grade": "D",
+    "score": 59,
+    "confidence": "55%",
+    "summary": "This video uses a strong problem-solution hook but fails by hiding the product for 20 seconds and adopting an impersonal, salesy tone, which severely limits its potential.",
+    "main_issue": "The product is not shown until 20 seconds in, and the tone shifts from helpful advice to a hard sell, breaking viewer trust."
+  },
+  "pillars": {
+    "hook_0_3s": 32,
+    "display_clarity": 18,
+    "creator_trust": 12,
+    "cta_effectiveness": 12
+  },
+  "flags": {
+    "fatal_flaw": true,
+    "upper_bound_c": false,
+    "upper_bound_b": true,
+    "penalties": [
+      "No product shown in first 3s (Ceiling B)",
+      "Excessive salesy tone (Drop one grade)"
+    ]
+  },
+  "three_dimensional": {
+    "market_saturation": {
+      "score": 9,
+      "level": "high",
+      "reason": "The supplement and gummy category is extremely crowded on TikTok; Goli is a well-known brand, making differentiation difficult."
+    },
+    "product_potential": {
+      "grade": "B",
+      "reason": "Supplements are experience-led and require trust. Their effects are not instantly visual, relying on creator persona to sell."
+    },
+    "creator_performance": {
+      "score": 6,
+      "strengths": [
+        "Clear and concise narration",
+        "Fast-paced editing keeps attention"
+      ],
+      "weaknesses": [
+        "Impersonal, faceless presentation",
+        "Tone becomes overly sales-focused"
+      ]
+    }
+  },
+  "timeline": [
+    {
+      "segment": "0-3s",
+      "score": 8,
+      "issue": "The actual product is not shown.",
+      "risk": "Viewers are confused about what is being sold, leading to early drop-off.",
+      "fix_hint": "Show the Goli bottle alongside the first red cup to immediately connect the problem to the solution."
+    },
+    {
+      "segment": "3-15s",
+      "score": 7,
+      "issue": "Rapid-fire listing of 5 different problems and ingredients.",
+      "risk": "Information overload may cause viewers to lose focus or feel like they are watching a generic ad.",
+      "fix_hint": "Focus on 1-2 core problems to build a more personal and believable story."
+    },
+    {
+      "segment": "15-25s",
+      "score": 7,
+      "issue": "Abrupt transition from 'helpful tips' to a direct sales pitch about cost.",
+      "risk": "The shift feels inorganic and breaks the 'sharing with a friend' authenticity, triggering ad-fatigue.",
+      "fix_hint": "Introduce the product as a personal discovery that solved the cost problem for you."
+    },
+    {
+      "segment": "25-30s",
+      "score": 6,
+      "issue": "The CTA is almost entirely price-driven and generic.",
+      "risk": "Lacks emotional connection and a compelling, benefit-oriented reason to act now.",
+      "fix_hint": "Connect the CTA back to the feeling of solving the initial pain points."
+    }
+  ],
+  "recommendations": [
+    {
+      "problem": "0-20s: The product is hidden for the first 20 seconds, violating a key principle of TikTok Shop.",
+      "solution": "Reshoot the intro to show the Goli bottles from the very first frame. The creator can hold the bottle while pointing to the corresponding 'problem' cup to create an immediate visual link.",
+      "examples": {
+        "oral": [
+          {
+            "text": "I was so tired of my belly bloat, so I got this...",
+            "source": {
+              "type": "pain_point",
+              "key": "tired_of___so_i"
+            }
+          },
+          {
+            "text": "This is going to sound crazy but this one gummy helps with my cravings.",
+            "source": {
+              "type": "curiosity",
+              "key": "this_is_going_to_sound_crazy"
+            }
+          }
+        ],
+        "text": {
+          "text": "This looks dumb but it's actually genius.",
+          "source": {
+            "type": "text_on_screen",
+            "key": "looks_dumb_genius"
+          }
+        }
+      },
+      "difficulty": "reshoot",
+      "expected_lift": "+50%~+70%"
+    },
+    {
+      "problem": "15s onwards: The video shifts into an impersonal, salesy tone that feels like a corporate ad.",
+      "solution": "Rewrite the script to frame it as a personal story. Instead of listing facts, talk about your own experience: 'I was buying all these separately and it was so expensive until I found this bundle.'",
+      "examples": {
+        "oral": [
+          {
+            "text": "I tried the viral Goli gummies and this is what they aren't telling you...",
+            "source": {
+              "type": "social_proof",
+              "key": "tried_viral___"
+            }
+          },
+          {
+            "text": "I didn't realize how bad my energy slumps were until I tried this.",
+            "source": {
+              "type": "pain_point",
+              "key": "didnt_realize_how_bad"
+            }
+          }
+        ],
+        "text": {
+          "text": "I wish I found this sooner 😩",
+          "source": {
+            "type": "text_on_screen",
+            "key": "wish_i_found_this_sooner"
+          }
+        }
+      },
+      "difficulty": "medium",
+      "expected_lift": "+25%~+35%"
+    },
+    {
+      "problem": "30-45s: The price comparison feels aggressive and lacks a strong benefit-driven call to action.",
+      "solution": "Soften the CTA by tying the discount back to solving the viewer's problem. Emphasize the feeling of relief or the positive outcome, not just the cost savings.",
+      "examples": {
+        "oral": [
+          {
+            "text": "I'll put the link with the sale price in that orange cart so you can feel better too!",
+            "source": {
+              "type": "cta.soft",
+              "key": "orange_cart_price"
+            }
+          },
+          {
+            "text": "If you don't see that little orange cart it does mean that it's sold out yet again!!!!",
+            "source": {
+              "type": "cta.urgency",
+              "key": "if_you_dont_see"
+            }
+          }
+        ],
+        "text": {
+          "text": "This will sell out again... run.",
+          "source": {
+            "type": "text_on_screen",
+            "key": "will_sell_out"
+          }
+        }
+      },
+      "difficulty": "simple",
+      "expected_lift": "+10%~+20%"
+    }
+  ],
+  "forecast": {
+    "views_range": "<0.5x creator_avg",
+    "gmv_range": "$0–$50",
+    "pass_probability": "1%"
+  },
+  "insights": {
+    "what_worked": "The initial 'If you have this problem, take this' format is an excellent hook. It quickly addresses multiple common pain points, maximizing the chance of resonating with a broad audience.",
+    "what_failed": "The fatal flaw is hiding the product for 20 seconds. This, combined with an impersonal, sales-focused tone, makes the video feel like a deceptive ad rather than authentic user-generated content."
+  },
+  "data_quality": {
+    "completeness": 0.2,
+    "notes": [
+      "No creator performance data provided (avg views, GMV).",
+      "Confidence is low and forecast ranges are widened due to sparse data."
+    ]
+  },
+  "knowledge_refs": [
+    {
+      "section": "hook.pain_point",
+      "ids": [
+        "tired_of___so_i",
+        "didnt_realize_how_bad"
+      ]
+    },
+    {
+      "section": "cta.soft",
+      "ids": [
+        "orange_cart_price"
+      ]
+    },
+    {
+      "section": "text_on_screen",
+      "ids": [
+        "looks_dumb_genius",
+        "wish_i_found_this_sooner",
+        "will_sell_out"
+      ]
+    }
+  ],
+  "model_meta": {
+    "detail_level": "full",
+    "model_version": "v1.0",
+    "seed": 42,
+    "created_at": "2023-10-27T10:30:00Z"
+  }
+}

@@ -1,0 +1,213 @@
+{
+  "overview": {
+    "grade": "C",
+    "score": 68,
+    "confidence": "70%",
+    "summary": "A highly authentic creator and a strong product demo are undermined by a weak hook, poor video structure, and a complete lack of a call-to-action.",
+    "main_issue": "The video's most compelling proof point (the smudge test) occurs too late (0:52), and the absence of a CTA severely limits conversion potential."
+  },
+  "pillars": {
+    "hook_0_3s": 28,
+    "display_clarity": 23,
+    "creator_trust": 16,
+    "cta_effectiveness": 3
+  },
+  "flags": {
+    "fatal_flaw": false,
+    "upper_bound_c": false,
+    "upper_bound_b": false,
+    "penalties": []
+  },
+  "three_dimensional": {
+    "market_saturation": {
+      "score": 9,
+      "level": "high",
+      "reason": "The beauty and lip product category is extremely saturated. Success requires strong differentiation in either product or presentation."
+    },
+    "product_potential": {
+      "grade": "S",
+      "reason": "The product has a powerful visual contrast (no transfer on a white towel) that is instantly understood and highly compelling."
+    },
+    "creator_performance": {
+      "score": 8,
+      "strengths": [
+        "Natural and enthusiastic delivery",
+        "Clear application demo",
+        "Appears genuinely impressed by the results"
+      ],
+      "weaknesses": [
+        "Ineffective video structure",
+        "No direct call-to-action"
+      ]
+    }
+  },
+  "timeline": [
+    {
+      "segment": "0-3s",
+      "score": 7,
+      "issue": "Hook is a simple statement of fact.",
+      "risk": "Fails to create strong curiosity or address a viewer pain point, risking immediate scroll-away.",
+      "fix_hint": "Reframe the opening around a common problem like makeup smudging."
+    },
+    {
+      "segment": "3-15s",
+      "score": 8,
+      "issue": "Product explanation is clear but standard.",
+      "risk": "Slightly slow pacing before the main demo begins.",
+      "fix_hint": "Condense the explanation of the pen's features to get to the application faster."
+    },
+    {
+      "segment": "15-25s",
+      "score": 8,
+      "issue": "Application demo is good.",
+      "risk": "Low risk; this segment effectively shows the product in use.",
+      "fix_hint": "Show a quicker 'before' and 'after' to heighten the visual impact."
+    },
+    {
+      "segment": "25-30s",
+      "score": 2,
+      "issue": "Segment continues the demo; no CTA or desire-building climax.",
+      "risk": "The video's structure is unconventional; the main climax (smudge test) is much later.",
+      "fix_hint": "This segment should build towards the final proof or a CTA."
+    }
+  ],
+  "recommendations": [
+    {
+      "problem": "No Call-to-Action (CTA) at the end of the video (1:00-1:11).",
+      "solution": "After expressing excitement, add a simple, direct CTA guiding viewers to the TikTok Shop link.",
+      "examples": {
+        "oral": [
+          {
+            "text": "I'm going to drop the link down below for you!",
+            "source": {
+              "type": "cta.soft",
+              "key": "drop_link_below"
+            }
+          },
+          {
+            "text": "If you don't see that little orange cart it does mean that it's sold out yet again!!!!",
+            "source": {
+              "type": "cta.soft",
+              "key": "orange_cart_price"
+            }
+          }
+        ],
+        "text": {
+          "text": "This will sell out again... run.",
+          "source": {
+            "type": "text_on_screen",
+            "key": "this_will_sell_out_again"
+          }
+        }
+      },
+      "difficulty": "simple",
+      "expected_lift": "+15%~+25%"
+    },
+    {
+      "problem": "The strongest proof point, the smudge test, is buried at 0:52.",
+      "solution": "Re-edit the video to place the smudge test result immediately after the first application (around 0:28) to maximize impact before viewers drop off.",
+      "examples": {
+        "oral": [
+          {
+            "text": "Keep watching because the end is wild...",
+            "source": {
+              "type": "curiosity",
+              "key": "keep_watching_because"
+            }
+          },
+          {
+            "text": "I thought they were being dramatic about this not smudging, but do you see this?",
+            "source": {
+              "type": "curiosity",
+              "key": "i_thought_they_were_dramatic"
+            }
+          }
+        ],
+        "text": {
+          "text": "I wish I found this sooner 😩",
+          "source": {
+            "type": "text_on_screen",
+            "key": "i_wish_i_found_this_sooner"
+          }
+        }
+      },
+      "difficulty": "medium",
+      "expected_lift": "+30%~+50%"
+    },
+    {
+      "problem": "The hook at 0-3s ('This is not a marker...') is weak and lacks urgency.",
+      "solution": "Reshoot the first 3 seconds with a hook that targets a common pain point for lip product users.",
+      "examples": {
+        "oral": [
+          {
+            "text": "I was sick of my lip liner smudging off by lunch so I got this...",
+            "source": {
+              "type": "pain_point",
+              "key": "tired_of___so_i"
+            }
+          },
+          {
+            "text": "This product just saved me from having to reapply my lipstick 5 times a day.",
+            "source": {
+              "type": "pain_point",
+              "key": "this_product_just_saved_me"
+            }
+          }
+        ],
+        "text": {
+          "text": "This went viral for a REASON.",
+          "source": {
+            "type": "text_on_screen",
+            "key": "this_went_viral_for_a_reason"
+          }
+        }
+      },
+      "difficulty": "reshoot",
+      "expected_lift": "+25%~+40%"
+    }
+  ],
+  "forecast": {
+    "views_range": "0.5x–2x creator_avg",
+    "gmv_range": "$100–$400",
+    "pass_probability": "5%-15%"
+  },
+  "insights": {
+    "what_worked": "The creator's authentic reaction combined with the undeniable smudge-proof demo creates very high trust and product desire.",
+    "what_failed": "Critical structural flaws—a weak hook, burying the best demo at the end, and no CTA—severely cripple the video's performance potential."
+  },
+  "data_quality": {
+    "completeness": 0.6,
+    "notes": [
+      "Confidence is limited and forecast ranges are widened due to the absence of historical creator performance data (average views, GMV)."
+    ]
+  },
+  "knowledge_refs": [
+    {
+      "section": "hook.pain_point",
+      "ids": [
+        "tired_of___so_i",
+        "this_product_just_saved_me"
+      ]
+    },
+    {
+      "section": "cta.soft",
+      "ids": [
+        "drop_link_below",
+        "orange_cart_price"
+      ]
+    },
+    {
+      "section": "hook.curiosity",
+      "ids": [
+        "keep_watching_because",
+        "i_thought_they_were_dramatic"
+      ]
+    }
+  ],
+  "model_meta": {
+    "detail_level": "full",
+    "model_version": "v1.0",
+    "seed": 42,
+    "created_at": "2023-10-27T10:30:00Z"
+  }
+}

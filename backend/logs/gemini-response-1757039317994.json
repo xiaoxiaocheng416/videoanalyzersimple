@@ -1,0 +1,210 @@
+{
+  "overview": {
+    "grade": "A",
+    "score": 83,
+    "confidence": "55%",
+    "summary": "Excellent product demonstration with a highly effective smudge-proof test, but the video is too long and lacks a clear, timely call-to-action, limiting its conversion potential.",
+    "main_issue": "The video's length (over 1 minute) dilutes the impact of the strong demo, and the absence of a direct CTA after the peak 'wow' moment causes lost sales."
+  },
+  "pillars": {
+    "hook_0_3s": 28,
+    "display_clarity": 23,
+    "creator_trust": 16,
+    "cta_effectiveness": 6
+  },
+  "flags": {
+    "fatal_flaw": false,
+    "upper_bound_c": false,
+    "upper_bound_b": false,
+    "penalties": []
+  },
+  "three_dimensional": {
+    "market_saturation": {
+      "score": 7,
+      "level": "high",
+      "reason": "The lip product category is extremely saturated, but the 'stain liner' format provides some novelty."
+    },
+    "product_potential": {
+      "grade": "S",
+      "reason": "The smudge-proof test provides an immediate, strong visual contrast that is perfect for short-form video."
+    },
+    "creator_performance": {
+      "score": 8,
+      "strengths": [
+        "Natural and authentic delivery",
+        "Clear demonstration of application"
+      ],
+      "weaknesses": [
+        "Pacing is slightly slow",
+        "No direct call-to-action"
+      ]
+    }
+  },
+  "timeline": [
+    {
+      "segment": "0-3s",
+      "score": 7,
+      "issue": "Hook is explanatory, not emotional.",
+      "risk": "Fails to create strong initial curiosity or address a user pain point, leading to some scroll-away.",
+      "fix_hint": "Reframe the hook around a common problem like smudging or fading lip liner."
+    },
+    {
+      "segment": "3-15s",
+      "score": 8,
+      "issue": "Slightly too much product explanation before the demo begins.",
+      "risk": "Minor drop-off from viewers impatient to see the product in action.",
+      "fix_hint": "Condense the product name/brand info and start applying it sooner."
+    },
+    {
+      "segment": "15-25s",
+      "score": 8,
+      "issue": "Good application demo, but could be edited for faster pacing.",
+      "risk": "Loses some viewer attention during the repetitive lining motion.",
+      "fix_hint": "Use jump cuts to show the start and end of the application more quickly."
+    },
+    {
+      "segment": "25-30s",
+      "score": 6,
+      "issue": "No value climax or CTA in this critical segment.",
+      "risk": "The video's main hook (smudge test) comes much later, causing massive audience drop-off before the best part.",
+      "fix_hint": "Restructure the video to place the smudge test much earlier, ideally before 20s."
+    }
+  ],
+  "recommendations": [
+    {
+      "problem": "Weak Hook (0-3s): The intro 'This is not a marker' is okay, but doesn't connect with a user's problem.",
+      "solution": "Replace the opening with a hook that directly addresses a pain point related to lip liner, making it instantly relatable.",
+      "examples": {
+        "oral": [
+          {
+            "text": "I was sick of my lip liner disappearing after one drink, so I got this...",
+            "source": {
+              "type": "pain_point",
+              "key": "tired_of___so_i"
+            }
+          },
+          {
+            "text": "This $12 item literally replaced my expensive lip liners...",
+            "source": {
+              "type": "curiosity",
+              "key": "this_10_item"
+            }
+          }
+        ],
+        "text": {
+          "text": "I wish I found this sooner 😩",
+          "source": {
+            "type": "text_on_screen",
+            "key": "wish_i_found_sooner"
+          }
+        }
+      },
+      "difficulty": "reshoot",
+      "expected_lift": "+25%~+40% Views"
+    },
+    {
+      "problem": "Poor Structure & Length (>60s): The most powerful proof (smudge test at 52s) happens too late, after most viewers have left.",
+      "solution": "Re-edit the video to be 35-45 seconds. Show the application, then immediately perform the smudge test to create a 'wow' moment before 20 seconds.",
+      "examples": {
+        "oral": [
+          {
+            "text": "Just wait for it... the smudge test is insane.",
+            "source": {
+              "type": "curiosity",
+              "key": "just_wait_for_it"
+            }
+          },
+          {
+            "text": "Watch what happens when I try to wipe it off.",
+            "source": {
+              "type": "pain_point",
+              "key": "watch_what_happens_when"
+            }
+          }
+        ],
+        "text": {
+          "text": "This went viral for a REASON.",
+          "source": {
+            "type": "text_on_screen",
+            "key": "viral_for_a_reason"
+          }
+        }
+      },
+      "difficulty": "medium",
+      "expected_lift": "+50% Completion Rate"
+    },
+    {
+      "problem": "Missing Call-to-Action: The video ends with excitement but never tells the viewer what to do next.",
+      "solution": "Immediately after the successful smudge test, add a clear and natural CTA directing viewers to the TikTok Shop link.",
+      "examples": {
+        "oral": [
+          {
+            "text": "I'll put the link with the sale price in that orange cart!",
+            "source": {
+              "type": "cta.soft",
+              "key": "orange_cart_price"
+            }
+          },
+          {
+            "text": "If you don't see that little orange cart it does mean that it's sold out yet again!!!!",
+            "source": {
+              "type": "cta.urgency",
+              "key": "if_you_dont_see_cart"
+            }
+          }
+        ],
+        "text": {
+          "text": "This will sell out again... run.",
+          "source": {
+            "type": "text_on_screen",
+            "key": "sell_out_again"
+          }
+        }
+      },
+      "difficulty": "simple",
+      "expected_lift": "+15% Conversion Rate"
+    }
+  ],
+  "forecast": {
+    "views_range": "10x–30x creator_avg (range widened 5x due to sparse data)",
+    "gmv_range": "$500–$5000 (range widened 5x due to sparse data)",
+    "pass_probability": "40%"
+  },
+  "insights": {
+    "what_worked": "The smudge test with the white towel is a perfect, S-tier demonstration. It visually proves the product's core benefit (longevity) in a clear and undeniable way.",
+    "what_failed": "The video structure is fatally flawed. By placing the best moment (smudge test) at the end of a long video, it loses the majority of the audience before they see the most compelling reason to buy."
+  },
+  "data_quality": {
+    "completeness": 0.2,
+    "notes": [
+      "No creator performance data (avg views, GMV) was provided.",
+      "Confidence is low (55%) and forecast ranges have been widened by 5x to account for the missing data."
+    ]
+  },
+  "knowledge_refs": [
+    {
+      "section": "hook.pain_point",
+      "ids": [
+        "tired_of___so_i"
+      ]
+    },
+    {
+      "section": "cta.soft",
+      "ids": [
+        "orange_cart_price"
+      ]
+    },
+    {
+      "section": "cta.urgency",
+      "ids": [
+        "if_you_dont_see_cart"
+      ]
+    }
+  ],
+  "model_meta": {
+    "detail_level": "full",
+    "model_version": "v1.0",
+    "seed": 42,
+    "created_at": "2023-10-27T10:00:00Z"
+  }
+}

@@ -1,0 +1,217 @@
+{
+  "overview": {
+    "grade": "B",
+    "score": 76,
+    "confidence": "55%",
+    "summary": "A highly authentic and convincing product demonstration, significantly held back by a buried lead (late 'wow' moment) and a lack of a direct call-to-action.",
+    "main_issue": "The strongest proof point (smudge test) occurs too late in the video (0:52), risking high viewer drop-off before the most compelling content is shown."
+  },
+  "pillars": {
+    "hook_0_3s": 8,
+    "display_clarity": 9,
+    "creator_trust": 9,
+    "cta_effectiveness": 3
+  },
+  "flags": {
+    "fatal_flaw": false,
+    "upper_bound_c": false,
+    "upper_bound_b": false,
+    "penalties": []
+  },
+  "three_dimensional": {
+    "market_saturation": {
+      "score": 9,
+      "level": "high",
+      "reason": "Lip stains and liners are an extremely competitive beauty category on TikTok with high user fatigue."
+    },
+    "product_potential": {
+      "grade": "S",
+      "reason": "The product has a strong, clear visual demo (smudge-proof test) and a unique applicator, making its value understood in seconds."
+    },
+    "creator_performance": {
+      "score": 9,
+      "strengths": [
+        "Genuine enthusiasm and authentic reactions",
+        "Clear and concise product application demo"
+      ],
+      "weaknesses": [
+        "Video is too long (>1 min)",
+        "No direct call-to-action to guide purchase"
+      ]
+    }
+  },
+  "timeline": [
+    {
+      "segment": "0-3s",
+      "score": 8,
+      "issue": "Hook is intriguing but not urgent.",
+      "risk": "Fails to capture users motivated by solving an immediate problem.",
+      "fix_hint": "Reframe the intro around a common pain point like smudging."
+    },
+    {
+      "segment": "3-15s",
+      "score": 9,
+      "issue": "None",
+      "risk": "",
+      "fix_hint": "This segment effectively explains the product's concept and unique form factor."
+    },
+    {
+      "segment": "15-25s",
+      "score": 9,
+      "issue": "None",
+      "risk": "",
+      "fix_hint": "Excellent demonstration of the smooth application, building initial desire."
+    },
+    {
+      "segment": "25-30s",
+      "score": 8,
+      "issue": "Segment builds desire but lacks a CTA.",
+      "risk": "Ideal window for a CTA is missed; viewers may not know what to do next.",
+      "fix_hint": "A soft CTA could be layered here after the initial 'wow' application moment."
+    }
+  ],
+  "recommendations": [
+    {
+      "problem": "The video's strongest proof, the smudge test, is at 0:52, which is too late.",
+      "solution": "Re-edit the video to be 35-45s and move the smudge test to the 10-15s mark, right after the first application, to maximize impact.",
+      "examples": {
+        "oral": [
+          {
+            "text": "I thought they were being dramatic about this being smudge-proof, but do you see this?",
+            "source": {
+              "type": "social_proof",
+              "key": "i_tried_the_viral"
+            }
+          },
+          {
+            "text": "Watch what happens when I try to wipe it off...",
+            "source": {
+              "type": "curiosity",
+              "key": "just_wait_for_it"
+            }
+          }
+        ],
+        "text": {
+          "text": "This went viral for a REASON.",
+          "source": {
+            "type": "text_on_screen",
+            "key": "this_went_viral"
+          }
+        }
+      },
+      "difficulty": "medium",
+      "expected_lift": "+30% completion rate"
+    },
+    {
+      "problem": "The video lacks a direct CTA, relying only on a strong endorsement at the end.",
+      "solution": "Add a clear, soft CTA voiceover and on-screen text immediately following the smudge-proof demo to guide viewers to the shop link.",
+      "examples": {
+        "oral": [
+          {
+            "text": "I'll put the link with the sale price in that orange cart!",
+            "source": {
+              "type": "soft",
+              "key": "orange_cart_price"
+            }
+          },
+          {
+            "text": "I don't know how much longer the sale has so I'll link it down below so you can grab it before it's gone!",
+            "source": {
+              "type": "urgency",
+              "key": "sale_duration_unknown"
+            }
+          }
+        ],
+        "text": {
+          "text": "This will sell out again... run.",
+          "source": {
+            "type": "text_on_screen",
+            "key": "will_sell_out"
+          }
+        }
+      },
+      "difficulty": "simple",
+      "expected_lift": "+50%~+100% conversion"
+    },
+    {
+      "problem": "The initial hook at 0-3s ('This is not a marker') is good but could be stronger.",
+      "solution": "Reshoot the first 3 seconds to lead with a more relatable pain point or a bolder curiosity-driven claim.",
+      "examples": {
+        "oral": [
+          {
+            "text": "I was sick of my lipliner disappearing by noon so I got this...",
+            "source": {
+              "type": "pain_point",
+              "key": "tired_of___so_i"
+            }
+          },
+          {
+            "text": "This $10 item literally changed my life...",
+            "source": {
+              "type": "curiosity",
+              "key": "cheap_item_changed_life"
+            }
+          }
+        ],
+        "text": {
+          "text": "I wish I found this sooner 😩",
+          "source": {
+            "type": "text_on_screen",
+            "key": "wish_i_found_sooner"
+          }
+        }
+      },
+      "difficulty": "reshoot",
+      "expected_lift": "+20%~+30% views"
+    }
+  ],
+  "forecast": {
+    "views_range": "5x–10x creator_avg (range widened due to sparse data)",
+    "gmv_range": "$700–$1,500 per 100k views",
+    "pass_probability": "15%-30%"
+  },
+  "insights": {
+    "what_worked": "The creator's authentic surprise during the smudge test is extremely powerful. This genuine reaction builds more trust than any scripted claim could.",
+    "what_failed": "Burying the lead. The single most compelling moment (smudge test) happens so late that a majority of viewers will likely churn before seeing it, gutting the video's potential."
+  },
+  "data_quality": {
+    "completeness": 0.2,
+    "notes": [
+      "No creator performance data provided (avg views, GMV).",
+      "Forecast confidence is low (55%) and ranges are widened x5 to account for missing data."
+    ]
+  },
+  "knowledge_refs": [
+    {
+      "section": "hook.pain_point",
+      "ids": [
+        "tired_of___so_i"
+      ]
+    },
+    {
+      "section": "hook.curiosity",
+      "ids": [
+        "just_wait_for_it",
+        "cheap_item_changed_life"
+      ]
+    },
+    {
+      "section": "cta.soft",
+      "ids": [
+        "orange_cart_price"
+      ]
+    },
+    {
+      "section": "cta.urgency",
+      "ids": [
+        "sale_duration_unknown"
+      ]
+    }
+  ],
+  "model_meta": {
+    "detail_level": "full",
+    "model_version": "v1.0",
+    "seed": 42,
+    "created_at": "2023-10-27T10:00:00Z"
+  }
+}

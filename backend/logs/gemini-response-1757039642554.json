@@ -1,0 +1,212 @@
+{
+  "overview": {
+    "grade": "B",
+    "score": 79,
+    "confidence": "60%",
+    "summary": "A well-structured video with a strong problem-solution hook and clear value proposition, but its potential is capped by delaying the product reveal until the 21-second mark.",
+    "main_issue": "The product is not shown within the first 3 seconds, which is a critical flaw that limits organic reach and creates a 'B' grade ceiling for the video's performance."
+  },
+  "pillars": {
+    "hook_0_3s": 36,
+    "display_clarity": 20,
+    "creator_trust": 16,
+    "cta_effectiveness": 12
+  },
+  "flags": {
+    "fatal_flaw": true,
+    "upper_bound_c": false,
+    "upper_bound_b": true,
+    "penalties": [
+      "No product shown in first 3s -> ceiling B"
+    ]
+  },
+  "three_dimensional": {
+    "market_saturation": {
+      "score": 9,
+      "level": "high",
+      "reason": "The supplement and gummy category is extremely competitive on TikTok. The 'problem-solution' format is also very common."
+    },
+    "product_potential": {
+      "grade": "A",
+      "reason": "The product addresses multiple, highly relatable pain points (bloating, cravings, energy) and the gummy format is visually appealing for video content."
+    },
+    "creator_performance": {
+      "score": 8,
+      "strengths": [
+        "Clear and fast-paced narration",
+        "Effective use of props and on-screen graphics to maintain interest."
+      ],
+      "weaknesses": [
+        "Creator is not on camera, which can limit personal connection and trust."
+      ]
+    }
+  },
+  "timeline": [
+    {
+      "segment": "0-3s",
+      "score": 9,
+      "issue": "Product is not shown.",
+      "risk": "Viewers may not realize it's a product video and scroll away. This triggers a platform penalty, limiting reach.",
+      "fix_hint": "Flash the product bottle briefly after mentioning the first problem."
+    },
+    {
+      "segment": "3-15s",
+      "score": 9,
+      "issue": "Rapidly lists 5 separate ingredients/problems.",
+      "risk": "Slight risk of overwhelming the viewer with too much information before the solution is presented.",
+      "fix_hint": "Consolidate to the top 3 most common pain points to improve message retention."
+    },
+    {
+      "segment": "15-25s",
+      "score": 8,
+      "issue": "Product is finally revealed at 21s.",
+      "risk": "High viewer drop-off before the main product is ever seen.",
+      "fix_hint": "Move the product reveal to the 3-5 second mark."
+    },
+    {
+      "segment": "25-30s",
+      "score": 8,
+      "issue": "The value proposition is split between two sections (15s and 30s).",
+      "risk": "The message could be stronger if the price comparison and final offer were closer together.",
+      "fix_hint": "Transition directly from the cost of separate ingredients to the TikTok Shop bundle price."
+    }
+  ],
+  "recommendations": [
+    {
+      "problem": "Product not shown until 0:21, which caps performance at a 'B' grade.",
+      "solution": "Integrate a quick visual of the Goli bottle within the first 5 seconds. For example, after the first problem is stated, flash the corresponding product.",
+      "examples": {
+        "oral": [
+          {
+            "text": "If you're tired of bloating, I was today years old when I found out this existed...",
+            "source": {
+              "type": "curiosity",
+              "key": "today_years_old"
+            }
+          },
+          {
+            "text": "I didn't realize how bad my bloating was until I tried this...",
+            "source": {
+              "type": "pain_point",
+              "key": "didnt_realize_how_bad"
+            }
+          }
+        ],
+        "text": {
+          "text": "This will sell out again... run.",
+          "source": {
+            "type": "text_on_screen",
+            "key": "will_sell_out"
+          }
+        }
+      },
+      "difficulty": "reshoot",
+      "expected_lift": "+30%~+50%"
+    },
+    {
+      "problem": "The creator is anonymous (hands only), which can reduce audience trust for a health product.",
+      "solution": "Incorporate a brief shot of the creator speaking to the camera to build a personal connection and increase credibility.",
+      "examples": {
+        "oral": [
+          {
+            "text": "To the girl on my FYP who told me about these... my gut has never been happier!",
+            "source": {
+              "type": "social_proof",
+              "key": "to_the_girl_on_fyp"
+            }
+          },
+          {
+            "text": "Tell me I'm not the only one dealing with bloating AND sugar cravings...",
+            "source": {
+              "type": "pain_point",
+              "key": "tell_me_im_not_only"
+            }
+          }
+        ],
+        "text": {
+          "text": "I wish I found this sooner 😩",
+          "source": {
+            "type": "text_on_screen",
+            "key": "wish_i_found_sooner"
+          }
+        }
+      },
+      "difficulty": "reshoot",
+      "expected_lift": "+10%~+20%"
+    },
+    {
+      "problem": "The final CTA at 0:40 is slightly rushed and relies only on scarcity.",
+      "solution": "Strengthen the CTA by reminding the user of the value proposition (the huge discount) right before the scarcity message.",
+      "examples": {
+        "oral": [
+          {
+            "text": "I'll put the link with the sale price in that orange cart before it sells out again!",
+            "source": {
+              "type": "cta.soft",
+              "key": "orange_cart_price"
+            }
+          },
+          {
+            "text": "I don't know how much longer this bundle deal has, so I'll link it down below so you can grab it!",
+            "source": {
+              "type": "cta.urgency",
+              "key": "dont_know_how_long"
+            }
+          }
+        ],
+        "text": {
+          "text": "TikTok made me buy it — worth every penny.",
+          "source": {
+            "type": "text_on_screen",
+            "key": "tiktok_made_me_buy_it"
+          }
+        }
+      },
+      "difficulty": "simple",
+      "expected_lift": "+5%~+10%"
+    }
+  ],
+  "forecast": {
+    "views_range": "5x–10x creator_avg",
+    "gmv_range": "$500 - $1,500 (highly speculative)",
+    "pass_probability": "25%"
+  },
+  "insights": {
+    "what_worked": "The rapid-fire 'problem-solution' format in the first 15 seconds is a highly effective hook that captures a broad audience. The price comparison is a powerful closing argument.",
+    "what_failed": "The fatal weakness is failing to show the product until 21 seconds in. This breaks a fundamental rule of TikTok Shop content, capping the video's potential and risking high early drop-off."
+  },
+  "data_quality": {
+    "completeness": 0.3,
+    "notes": [
+      "Confidence is low and forecast ranges are wide due to missing creator performance data (avg. views, GMV, AOV)."
+    ]
+  },
+  "knowledge_refs": [
+    {
+      "section": "hook.pain_point",
+      "ids": [
+        "didnt_realize_how_bad",
+        "tell_me_im_not_only"
+      ]
+    },
+    {
+      "section": "cta.urgency",
+      "ids": [
+        "dont_know_how_long"
+      ]
+    },
+    {
+      "section": "text_on_screen",
+      "ids": [
+        "wish_i_found_sooner",
+        "will_sell_out"
+      ]
+    }
+  ],
+  "model_meta": {
+    "detail_level": "full",
+    "model_version": "v1.0",
+    "seed": 42,
+    "created_at": "2023-10-27T10:30:00Z"
+  }
+}

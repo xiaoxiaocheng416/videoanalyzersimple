@@ -1,0 +1,214 @@
+{
+  "overview": {
+    "grade": "A",
+    "score": 85,
+    "confidence": "60%",
+    "summary": "A strong product demonstration with a natural creator and a fantastic visual proof point (the smudge test), but its effectiveness is hampered by slow pacing and excessive length.",
+    "main_issue": "The video is over a minute long, which risks high audience drop-off before the most compelling demo (the smudge test at 0:52) is shown."
+  },
+  "pillars": {
+    "hook_0_3s": 36,
+    "display_clarity": 23,
+    "creator_trust": 18,
+    "cta_effectiveness": 11
+  },
+  "flags": {
+    "fatal_flaw": false,
+    "upper_bound_c": false,
+    "upper_bound_b": false,
+    "penalties": []
+  },
+  "three_dimensional": {
+    "market_saturation": {
+      "score": 9,
+      "level": "high",
+      "reason": "The beauty and lip product category is extremely saturated. The product's unique format and smudge-proof demo provide necessary differentiation."
+    },
+    "product_potential": {
+      "grade": "S",
+      "reason": "The 'marker' format is visually intriguing and the smudge-proof test provides a powerful, easily understood visual contrast demo."
+    },
+    "creator_performance": {
+      "score": 9,
+      "strengths": [
+        "Natural and authentic delivery",
+        "Clear demonstration of application",
+        "Genuine enthusiasm for the product"
+      ],
+      "weaknesses": [
+        "Pacing is slow, leading to a long video"
+      ]
+    }
+  },
+  "timeline": [
+    {
+      "segment": "0-3s",
+      "score": 9,
+      "issue": "Hook is good but could be better.",
+      "risk": "Fails to connect with a specific user pain point immediately.",
+      "fix_hint": "Frame the hook around solving a common problem, like smudging."
+    },
+    {
+      "segment": "3-15s",
+      "score": 8,
+      "issue": "Standard product introduction.",
+      "risk": "Slightly slow start before the main application demo.",
+      "fix_hint": "Get to the application demo within the first 5 seconds to increase engagement."
+    },
+    {
+      "segment": "15-25s",
+      "score": 8,
+      "issue": "Application demo is clear but prolonged.",
+      "risk": "Viewers may lose interest during the extended application sequence.",
+      "fix_hint": "Show one quick, smooth application line to prove the point, then move on."
+    },
+    {
+      "segment": "25-30s",
+      "score": 7,
+      "issue": "The video continues well past 30s with more application.",
+      "risk": "The most powerful proof (smudge test) is buried at the end of a long video.",
+      "fix_hint": "Condense the video to place the smudge test before the 30-second mark."
+    }
+  ],
+  "recommendations": [
+    {
+      "problem": "Video length (1:11) is excessive and buries the strongest selling point.",
+      "solution": "Re-edit the video to a 35-45 second runtime. Move the powerful smudge test (0:52) to occur much earlier, around the 20-second mark, to maximize its impact.",
+      "examples": {
+        "oral": [
+          {
+            "text": "Keep watching because the end is wild...",
+            "source": {
+              "type": "curiosity",
+              "key": "keep_watching_because"
+            }
+          },
+          {
+            "text": "I thought they were being dramatic about this but do you see this...",
+            "source": {
+              "type": "curiosity",
+              "key": "dramatic_about_this"
+            }
+          }
+        ],
+        "text": {
+          "text": "This went viral for a REASON.",
+          "source": {
+            "type": "text_on_screen",
+            "key": "viral_for_a_reason"
+          }
+        }
+      },
+      "difficulty": "medium",
+      "expected_lift": "+25%~+35%"
+    },
+    {
+      "problem": "The CTA is indirect (0:59 onwards). The creator expresses personal desire but doesn't guide the viewer to purchase.",
+      "solution": "Add a clear, low-pressure Call to Action at the end using a voiceover or text overlay while showing the final smudge-proof result.",
+      "examples": {
+        "oral": [
+          {
+            "text": "I'm going to drop the link down below for you!",
+            "source": {
+              "type": "cta.soft",
+              "key": "drop_link_below"
+            }
+          },
+          {
+            "text": "I'll put the link with the sale price in that orange cart!",
+            "source": {
+              "type": "cta.soft",
+              "key": "orange_cart_price"
+            }
+          }
+        ],
+        "text": {
+          "text": "This will sell out again... run.",
+          "source": {
+            "type": "text_on_screen",
+            "key": "will_sell_out"
+          }
+        }
+      },
+      "difficulty": "simple",
+      "expected_lift": "+10%~+15%"
+    },
+    {
+      "problem": "The hook at 0-3s ('This is not a marker') creates curiosity but doesn't address a specific problem.",
+      "solution": "Strengthen the hook by immediately connecting the product to a common makeup frustration.",
+      "examples": {
+        "oral": [
+          {
+            "text": "I was sick of my lip liner disappearing after one drink so I got this...",
+            "source": {
+              "type": "pain_point",
+              "key": "tired_of___so_i"
+            }
+          },
+          {
+            "text": "This product just saved me from constant touch-ups.",
+            "source": {
+              "type": "pain_point",
+              "key": "product_saved_me"
+            }
+          }
+        ],
+        "text": {
+          "text": "Why is no one talking about this?!",
+          "source": {
+            "type": "text_on_screen",
+            "key": "why_no_one_talking"
+          }
+        }
+      },
+      "difficulty": "reshoot",
+      "expected_lift": "+15%~+20%"
+    }
+  ],
+  "forecast": {
+    "views_range": "Potentially 10x–30x creator average",
+    "gmv_range": "$1,000–$5,000",
+    "pass_probability": "30% - 50%"
+  },
+  "insights": {
+    "what_worked": "The smudge test with the white towel is an S-tier visual demo. It provides instant, undeniable proof of the product's core value proposition and creates a 'wow' moment for the viewer.",
+    "what_failed": "The video's pacing is its fatal weakness. By saving the best part (the smudge test) for the very end of a 70-second video, it risks losing a majority of viewers before they see the proof."
+  },
+  "data_quality": {
+    "completeness": 0.4,
+    "notes": [
+      "No creator performance data (avg. views, GMV) was provided.",
+      "Forecast ranges have been widened by 5x to account for low data completeness.",
+      "Confidence is reduced to 'low'."
+    ]
+  },
+  "knowledge_refs": [
+    {
+      "section": "hook.curiosity",
+      "ids": [
+        "keep_watching_because",
+        "dramatic_about_this"
+      ]
+    },
+    {
+      "section": "hook.pain_point",
+      "ids": [
+        "tired_of___so_i",
+        "product_saved_me"
+      ]
+    },
+    {
+      "section": "cta.soft",
+      "ids": [
+        "drop_link_below",
+        "orange_cart_price"
+      ]
+    }
+  ],
+  "model_meta": {
+    "detail_level": "full",
+    "model_version": "v1.0",
+    "seed": 42,
+    "created_at": "2023-10-27T10:00:00Z"
+  }
+}
