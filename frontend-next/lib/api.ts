@@ -6,6 +6,9 @@ import {
 } from './normalize';
 import { parseAnalysisResult } from './validation';
 
+// API base: env override, fallback to /api (for proxy)
+const API_BASE = (process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, '') || '/api');
+
 // 完整性检查 - 确保数据不是全默认值
 function hasRealData(data: any): boolean {
   if (!data) return false;
@@ -79,7 +82,7 @@ export class VideoAnalyzerAPI {
           reject(new Error('Request timeout - video analysis is taking longer than expected'));
         });
 
-        xhr.open('POST', '/api/videos/upload');
+        xhr.open('POST', `${API_BASE}/videos/upload`);
         xhr.send(formData);
       });
     } catch (error) {

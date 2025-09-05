@@ -11,7 +11,14 @@ const upload = multer({
 
 // Middleware - 明确允许跨域
 app.use(cors({
-  origin: ['http://localhost:3005', 'http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'],
+  origin: [
+    'http://localhost:3005',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+    // Netlify production domain (adjust to your actual site domain)
+    'https://videoanalyzer.netlify.app'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
