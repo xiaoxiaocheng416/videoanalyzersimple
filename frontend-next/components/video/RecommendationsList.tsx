@@ -36,9 +36,14 @@ interface RecommendationsListProps {
 }
 
 // 局部补充类型（保留 WithExamples）
-type RecommendationItem = WithExamples & {
+type RecommendationItem = Recommendation & WithExamples & {
   calculatedPriority?: unknown; // 后端可能返回任意，需要本地校验
-  impact?: string | number; // 加入可选 impact，避免 TS 报错
+  impact?: string | number; // 可选 impact（字符串或数字）
+  effort?: string | number; // 可选 effort，修复 TS 报错
+  difficulty?: string; // 可选难度描述
+  expected_lift?: string | number; // 可选预期提升
+  problem?: string; // 可选问题描述
+  solution?: string; // 可选解决方案
 };
 
 // 前端派生优先级计算
