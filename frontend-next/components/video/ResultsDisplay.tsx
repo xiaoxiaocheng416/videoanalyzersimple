@@ -17,6 +17,25 @@ import { FlagsPills } from './FlagsPills';
 import SummaryTab from './SummaryTab';
 import { AnalysisResult } from '@/lib/validation';
 
+// ---- local types for data quality ----
+type DataQualityObj = {
+  completeness?: number;
+  score?: number;
+  issues?: number;
+  notes?: string;
+  [k: string]: unknown;
+};
+type DataQuality = number | string | DataQualityObj | null | undefined;
+
+// 页面本地认知的数据形状（不改全局类型，只做局部放宽）
+type AnalysisDataLocal = {
+  overview: { score: number; grade: string; [k: string]: unknown };
+  // 后端有时用 snake_case，有时 camelCase，这里两者都兼容
+  data_quality?: DataQuality;
+  dataQuality?: DataQuality;
+  [k: string]: unknown;
+};
+
 interface ResultsDisplayProps {
   results: {
     type: 'structured' | 'text';
@@ -48,6 +67,19 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
     const data = results.data;
     const validation = results.validation;
     const hasValidationWarning = validation && !validation.is_complete_structure;
+
+    // 兼容两种字段名，并做类型归一化
+    const dqRaw =
+      (data as Partial<AnalysisDataLocal>).data_quality ??
+      (data as Partial<AnalysisDataLocal>).dataQuality;
+
+    const dataCompleteness =
+      typeof dqRaw === 'object' && dqRaw !== null
+        ? // 对象时优先 completeness，其次 score
+          (dqRaw as DataQualityObj).completeness ??
+          (dqRaw as DataQualityObj).score ??
+          undefined
+        : (dqRaw as number | string | null | undefined) ?? undefined;
 
     return (
       <div className="w-full space-y-6">
@@ -122,7 +154,13 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
             {/* 总览卡片 */}
             <OverviewCard
               overview={data.overview}
-              dataCompleteness={data.data_quality?.completeness || 0.8}
+              dataCompleteness={
+                typeof dataCompleteness === 'number'
+                  ? dataCompleteness
+                  : typeof dataCompleteness === 'string'
+                  ? parseFloat(dataCompleteness) || undefined
+                  : undefined
+              }
             />
 
             {/* Pillars分数展示 */}
