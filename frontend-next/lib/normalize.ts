@@ -47,7 +47,8 @@ export const normalizePillars = (
   },
   meta?: {
     scale?: 'weighted_points' | 'raw_0_10';
-    weights?: typeof WEIGHTS;
+    // 后端可能只返回部分权重，这里放宽为 Partial
+    weights?: Partial<typeof WEIGHTS>;
   }
 ): {
   hook_0_3s: number;
@@ -82,7 +83,8 @@ export const normalizePillars = (
   }
 
   // 加权分转换为0-10
-  const weights = meta?.weights ?? WEIGHTS;
+  // 合并默认权重，确保所有键都存在
+  const weights = { ...WEIGHTS, ...(meta?.weights ?? {}) };
   
   // 四舍五入到最近的0.5
   const toNearestHalf = (x: number) => Math.round(x * 2) / 2;

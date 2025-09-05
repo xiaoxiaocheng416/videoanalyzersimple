@@ -5,12 +5,8 @@ const nextConfig = {
     externalDir: true,
   },
   async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: 'http://localhost:5001/api/:path*',
-      },
-    ];
+    // 开发时保留 /api 前缀，不在此处硬编码后端地址
+    return [];
   },
 };
 

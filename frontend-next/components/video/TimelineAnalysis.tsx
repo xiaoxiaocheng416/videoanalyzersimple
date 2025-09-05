@@ -8,8 +8,30 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Clock, AlertTriangle, Info, Lightbulb } from 'lucide-react';
 import { TimelineSegment } from '@/lib/validation';
 
+// 兼容更丰富的时间线字段（本地放宽，不改全局类型）
+type TimelineSegmentLoose = {
+  segment?: string;
+  phase?: string;
+  t_start?: number;
+  t_end?: number;
+  score?: number;
+  spoken_excerpt?: string;
+  screen_text?: string;
+  visual_cue?: string;
+  product_visible?: boolean;
+  ceiling_rules_triggered?: string[];
+  time_range?: string;
+  timestamp?: string;
+  description?: string;
+  score_impact?: string;
+  issue?: string | null;
+  risk?: string | null;
+  fix_hint?: string | null;
+  [k: string]: unknown;
+};
+
 interface TimelineAnalysisProps {
-  timeline: TimelineSegment[];
+  timeline: (TimelineSegment | TimelineSegmentLoose)[];
 }
 
 // 空值处理函数
@@ -94,7 +116,8 @@ export const TimelineAnalysis: React.FC<TimelineAnalysisProps> = ({ timeline }) 
       <CardContent className="text-left">
         <Accordion type="single" collapsible className="w-full">
           {timeline.map((segment, index) => {
-            const hasIssues = segment.issue || segment.risk || segment.fix_hint;
+            const seg = segment as any; // 宽松兼容两种时间线结构
+            const hasIssues = seg.issue || seg.risk || seg.fix_hint;
             
             return (
               <AccordionItem key={index} value={`item-${index}`}>
@@ -108,34 +131,34 @@ export const TimelineAnalysis: React.FC<TimelineAnalysisProps> = ({ timeline }) 
                       </span>
                       
                       {/* Phase badge */}
-                      {segment.phase && (
+                      {seg.phase && (
                         <Badge 
                           variant="secondary" 
-                          className={`${getPhaseColor(segment.phase)} text-white text-xs px-2 py-0.5`}
+                          className={`${getPhaseColor(seg.phase)} text-white text-xs px-2 py-0.5`}
                         >
-                          {getPhaseLabel(segment.phase)}
+                          {getPhaseLabel(seg.phase)}
                         </Badge>
                       )}
                       
                       {/* Ceiling rules indicator */}
-                      {segment.ceiling_rules_triggered && segment.ceiling_rules_triggered.length > 0 && (
+                      {seg.ceiling_rules_triggered && seg.ceiling_rules_triggered.length > 0 && (
                         <Badge variant="destructive" className="text-xs px-2 py-0.5">
                           Ceiling
                         </Badge>
                       )}
                       
                       {/* Issue indicator - only show if severity !== 'none' or hasIssues */}
-                      {(segment.severity && segment.severity !== 'none') && (
+                      {(seg.severity && seg.severity !== 'none') && (
                         <AlertTriangle className="h-3 w-3 text-orange-500" />
                       )}
                     </div>
                     
-                    {segment.score_impact && segment.score_impact !== '—' && (
+                    {seg.score_impact && seg.score_impact !== '—' && (
                       <Badge 
                         variant="secondary"
-                        className={`${getScoreImpactColor(segment.score_impact)} text-white text-xs`}
+                        className={`${getScoreImpactColor(seg.score_impact)} text-white text-xs`}
                       >
-                        {segment.score_impact}
+                        {seg.score_impact}
                       </Badge>
                     )}
                   </div>
@@ -143,55 +166,55 @@ export const TimelineAnalysis: React.FC<TimelineAnalysisProps> = ({ timeline }) 
                 
                 <AccordionContent className="space-y-3 pt-3 text-left items-start">
                   {/* Timeline info with new fields */}
-                  {(segment.t_start !== undefined || segment.t_end !== undefined) && (
+                  {(seg.t_start !== undefined || seg.t_end !== undefined) && (
                     <div className="text-xs text-muted-foreground mb-2">
-                      Time: {segment.t_start}s - {segment.t_end}s
+                      Time: {seg.t_start}s - {seg.t_end}s
                     </div>
                   )}
                   
                   {/* Spoken excerpt */}
-                  {segment.spoken_excerpt && segment.spoken_excerpt !== '' && (
+                  {seg.spoken_excerpt && seg.spoken_excerpt !== '' && (
                     <div className="space-y-1 text-left items-start">
                       <span className="text-xs font-semibold text-muted-foreground">Spoken:</span>
                       <p className="text-sm italic leading-relaxed">
-                        {segment.spoken_excerpt.startsWith('~') && (
+                        {seg.spoken_excerpt.startsWith('~') && (
                           <Badge variant="outline" className="text-xs mr-2">approx.</Badge>
                         )}
-                        "{segment.spoken_excerpt.replace(/^~/, '')}"
+                        "{seg.spoken_excerpt.replace(/^~/, '')}"
                       </p>
                     </div>
                   )}
                   
                   {/* Screen text */}
-                  {segment.screen_text && segment.screen_text !== '' && (
+                  {seg.screen_text && seg.screen_text !== '' && (
                     <div className="space-y-1 text-left items-start">
                       <span className="text-xs font-semibold text-muted-foreground">On-screen text:</span>
-                      <p className="text-sm font-medium leading-relaxed">{segment.screen_text}</p>
+                      <p className="text-sm font-medium leading-relaxed">{seg.screen_text}</p>
                     </div>
                   )}
                   
                   {/* Visual cue */}
-                  {segment.visual_cue && segment.visual_cue !== '' && (
+                  {seg.visual_cue && seg.visual_cue !== '' && (
                     <div className="space-y-1 text-left items-start">
                       <span className="text-xs font-semibold text-muted-foreground">Visual:</span>
-                      <p className="text-sm text-muted-foreground leading-relaxed">{segment.visual_cue}</p>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{seg.visual_cue}</p>
                     </div>
                   )}
                   
                   {/* Product visibility indicator */}
-                  {segment.product_visible !== undefined && (
+                  {seg.product_visible !== undefined && (
                     <div className="flex items-center gap-2 text-left items-start">
                       <span className="text-xs font-semibold text-muted-foreground">Product visible:</span>
-                      <Badge variant={segment.product_visible ? "default" : "secondary"}>
-                        {segment.product_visible ? 'Yes' : 'No'}
+                      <Badge variant={seg.product_visible ? "default" : "secondary"}>
+                        {seg.product_visible ? 'Yes' : 'No'}
                       </Badge>
                     </div>
                   )}
                   
                   {/* 描述 (if exists) */}
-                  {segment.description && (
+                  {seg.description && (
                     <div className="text-sm text-muted-foreground leading-relaxed">
-                      {renderValue(segment.description)}
+                      {renderValue(seg.description as string)}
                     </div>
                   )}
 
@@ -204,7 +227,7 @@ export const TimelineAnalysis: React.FC<TimelineAnalysisProps> = ({ timeline }) 
                         <span className="text-sm font-semibold text-amber-900">Issue:</span>
                       </div>
                       <p className="text-sm leading-relaxed text-amber-900/90">
-                        {segment.issue || 'No major issue — keep as-is.'}
+                        {seg.issue || 'No major issue — keep as-is.'}
                       </p>
                     </div>
 
@@ -215,7 +238,7 @@ export const TimelineAnalysis: React.FC<TimelineAnalysisProps> = ({ timeline }) 
                         <span className="text-sm font-semibold text-rose-900">Risk:</span>
                       </div>
                       <p className="text-sm leading-relaxed text-rose-900/90">
-                        {segment.risk || 'Low risk; maintain current approach.'}
+                        {seg.risk || 'Low risk; maintain current approach.'}
                       </p>
                     </div>
 
@@ -226,7 +249,7 @@ export const TimelineAnalysis: React.FC<TimelineAnalysisProps> = ({ timeline }) 
                         <span className="text-sm font-semibold text-emerald-900">Fix Hint:</span>
                       </div>
                       <p className="text-sm leading-relaxed text-emerald-900/90">
-                        {segment.fix_hint || 'Optional micro-optimization: —'}
+                        {seg.fix_hint || 'Optional micro-optimization: —'}
                       </p>
                     </div>
                   </div>
