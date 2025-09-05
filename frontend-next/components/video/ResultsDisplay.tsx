@@ -4,7 +4,7 @@ import React, { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from 'mksaas/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Download, RefreshCw, FileText, Info, Trophy, Target, Activity, BarChart3, Shield, AlertTriangle } from 'lucide-react';
@@ -48,7 +48,7 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
     const data = results.data;
     const validation = results.validation;
     const hasValidationWarning = validation && !validation.is_complete_structure;
-    
+
     return (
       <div className="w-full space-y-6">
         {/* 验证警告 - 第三层防护UI反馈 */}
@@ -68,7 +68,7 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
             </AlertDescription>
           </Alert>
         )}
-        
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -90,14 +90,14 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
             </Button>
           </div>
         </div>
-        
+
         {/* Flags Pills - 顶部显示警告标记 */}
         {data.flags && data.flags.length > 0 && (
           <div className="p-4 border rounded-lg bg-muted/30">
             <FlagsPills flags={data.flags} />
           </div>
         )}
-        
+
         {/* 主要内容区域 - 使用Tabs */}
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className="flex w-full overflow-hidden gap-1 p-1 bg-muted rounded-lg">
@@ -117,14 +117,14 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
               Details
             </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="overview" className="mt-6 space-y-6">
             {/* 总览卡片 */}
-            <OverviewCard 
+            <OverviewCard
               overview={data.overview}
               dataCompleteness={data.data_quality?.completeness || 0.8}
             />
-            
+
             {/* Pillars分数展示 */}
             {data.pillars && (
               <Card>
@@ -144,7 +144,7 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
                         <span className="text-sm font-bold">{value}/10</span>
                       </div>
                       <div className="h-2 bg-muted rounded-full overflow-hidden">
-                        <div 
+                        <div
                           className="h-full bg-primary transition-all"
                           style={{ width: `${value * 10}%` }}
                         />
@@ -154,7 +154,7 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
                 </CardContent>
               </Card>
             )}
-            
+
             {/* 预测 */}
             {data.forecast && (
               <Card>
@@ -184,22 +184,22 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
               </Card>
             )}
           </TabsContent>
-          
+
           <TabsContent value="timeline" className="mt-6">
             <TimelineAnalysis timeline={data.timeline || []} />
           </TabsContent>
-          
+
           <TabsContent value="recommendations" className="mt-6">
-            <RecommendationsList 
+            <RecommendationsList
               recommendations={data.recommendations || []}
               topOpportunities={data.top_opportunities}
             />
           </TabsContent>
-          
+
           <TabsContent value="summary" className="mt-6">
             <SummaryTab summary={(data as any)?.improvement_summary} />
           </TabsContent>
-          
+
           <TabsContent value="details" className="mt-6">
             <Card>
               <CardHeader>
@@ -225,15 +225,15 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
                             This is the exact response from the AI model:
                           </p>
                           <pre className="bg-muted/50 rounded-lg p-4 overflow-x-auto text-xs max-h-[400px] overflow-y-auto">
-                            {typeof results.rawResponse === 'string' 
-                              ? results.rawResponse 
+                            {typeof results.rawResponse === 'string'
+                              ? results.rawResponse
                               : JSON.stringify(results.rawResponse, null, 2)}
                           </pre>
                         </div>
                       </AccordionContent>
                     </AccordionItem>
                   )}
-                  
+
                   {/* 规范化后的数据 */}
                   <AccordionItem value="normalized">
                     <AccordionTrigger className="font-medium">
@@ -250,7 +250,7 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
                       </div>
                     </AccordionContent>
                   </AccordionItem>
-                  
+
                   {/* 验证状态 */}
                   {validation && (
                     <AccordionItem value="validation">
@@ -283,7 +283,7 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
                       </AccordionContent>
                     </AccordionItem>
                   )}
-                  
+
                   {data.raw_notes && (
                     <AccordionItem value="notes">
                       <AccordionTrigger>Additional Notes</AccordionTrigger>
@@ -302,7 +302,7 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
       </div>
     );
   }
-  
+
   // 回退到原始文本显示（向后兼容）
   const parsedAnalysis = useMemo(() => {
     const text = results.fullText || '';
