@@ -17,10 +17,10 @@ export const PRIORITIES = ['Critical', 'High', 'Medium', 'Low'] as const;
 export type Priority = typeof PRIORITIES[number];
 
 export const priorityColors: Record<Priority, string> = {
-  Critical: 'bg-red-500',
-  High: 'bg-orange-500',
-  Medium: 'bg-yellow-500',
-  Low: 'bg-gray-500'
+  Critical: 'bg-red-100 text-red-700',
+  High: 'bg-orange-100 text-orange-700',
+  Medium: 'bg-yellow-100 text-yellow-700',
+  Low: 'bg-green-100 text-green-700',
 };
 
 const isPriority = (x: unknown): x is Priority =>
@@ -38,6 +38,7 @@ interface RecommendationsListProps {
 // 局部补充类型（保留 WithExamples）
 type RecommendationItem = WithExamples & {
   calculatedPriority?: unknown; // 后端可能返回任意，需要本地校验
+  impact?: string | number; // 加入可选 impact，避免 TS 报错
 };
 
 // 前端派生优先级计算
@@ -198,6 +199,7 @@ export const RecommendationsList: React.FC<RecommendationsListProps> = ({
                 : 'Medium';
 
               const priorityColor = priorityColors[priority];
+              const impact = rec.impact; // 安全读取，可为 string/number/undefined
 
               return (
                 <AccordionItem key={index} value={`rec-${index}`} className="border rounded-lg">
@@ -206,15 +208,15 @@ export const RecommendationsList: React.FC<RecommendationsListProps> = ({
                       <div className="flex-1 space-y-2">
                         <div className="flex items-center gap-2">
                           <Badge
-                            className={`${priorityColor} text-white`}
+                            className={`${priorityColor}`}
                           >
                             {priority}
                           </Badge>
 
-                          {rec.impact && (
+                          {impact !== undefined && impact !== null && impact !== '' && (
                             <div className="flex items-center gap-1 text-xs text-muted-foreground">
                               <TrendingUp className="h-3 w-3" />
-                              <span>Impact: {rec.impact}</span>
+                              <span>Impact: {String(impact)}</span>
                             </div>
                           )}
 
