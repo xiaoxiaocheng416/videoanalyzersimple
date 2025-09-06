@@ -157,14 +157,14 @@ export default function HomePage() {
                     type="url"
                     value={linkUrl}
                     onChange={(e) => setLinkUrl(e.target.value)}
-                    placeholder="粘贴 TikTok 视频链接"
+                    placeholder="Paste TikTok video link"
                     className="flex-1 px-3 py-2 rounded-md border bg-white text-sm"
                   />
                   <button
                     onClick={handleAnalyzeUrl}
                     className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:bg-primary/90"
                   >
-                    分析链接
+                    Analyze link
                   </button>
                 </div>
                 {linkError && (
