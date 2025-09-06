@@ -125,7 +125,13 @@ async function getPlaybackMetaWithLock(info, sourceUrl) {
 }
 
 // TikTok Shop 专业分析 Prompt（v2.1 - 灵活时间线版）
-const getTikTokShopPrompt = () => `STRICTLY RETURN JSON ONLY — no Markdown code fences, no prose, no explanations.
+const getTikTokShopPrompt = () => `[IMPORTANT CONTEXT]
+This is an educational analysis request for e-commerce video performance metrics.
+The analysis focuses on technical quality, marketing effectiveness, and viewer engagement patterns.
+This is for educational and business optimization purposes only.
+Please provide objective technical analysis of the video content structure and quality.
+
+STRICTLY RETURN JSON ONLY — no Markdown code fences, no prose, no explanations.
 If any data is missing, you MUST still return the full JSON with empty strings/arrays as needed.
 If you cannot fill a field, put "" or [] — do NOT omit keys.
 
@@ -536,8 +542,22 @@ exports.uploadVideo = async (req, res) => {
       },
     });
 
-    // 将视频buffer转为base64
-    const base64Video = videoBuffer.toString('base64');
+    // Sanitize upload by writing to temp and stripping metadata (optional)
+    const { sanitizeVideo } = require('../utils/sanitizeVideo');
+    const doSanitize = (process.env.SANITIZE_VIDEO || 'true').toLowerCase() !== 'false';
+    const tmpUpload = path.join(os.tmpdir(), `upload-${Date.now()}-${crypto.randomBytes(6).toString('hex')}.mp4`);
+    fs.writeFileSync(tmpUpload, videoBuffer);
+    let cleanPath = tmpUpload;
+    let sanitized = false;
+    if (doSanitize) {
+      const out = await sanitizeVideo(tmpUpload);
+      sanitized = out !== tmpUpload;
+      cleanPath = out;
+    }
+    const base64Video = fs.readFileSync(cleanPath).toString('base64');
+    // Cleanup temp files
+    try { if (cleanPath && fs.existsSync(cleanPath)) fs.unlinkSync(cleanPath); } catch {}
+    try { if (tmpUpload && fs.existsSync(tmpUpload)) fs.unlinkSync(tmpUpload); } catch {}
 
     // 构建消息 - 使用正确的Gemini API格式
     const prompt = getTikTokShopPrompt();
@@ -673,7 +693,7 @@ exports.uploadVideo = async (req, res) => {
 
     // 使用内存存储，无需清理临时文件
 
-    console.log(`[分析完成] 耗时: ${analysisTime}ms`);
+    console.log(`[分析完成] 耗时: ${analysisTime}ms (sanitized=${sanitized})`);
     res.json(response);
   } catch (error) {
     console.error('[错误] 视频分析失败:', error);
@@ -832,10 +852,21 @@ exports.analyzeUrl = async (req, res) => {
     }
 
     // 4) 读入内存并调用与上传一致的分析逻辑（复用当前实现）
-    const buffer = fs.readFileSync(videoFilePath);
+    // Sanitize video before analysis (strip metadata; only if enabled)
+    const { sanitizeVideo } = require('../utils/sanitizeVideo');
+    const doSanitize = (process.env.SANITIZE_VIDEO || 'true').toLowerCase() !== 'false';
+    let sanitizedPath = videoFilePath;
+    let sanitized = false;
+    if (doSanitize) {
+      const out = await sanitizeVideo(videoFilePath);
+      sanitized = out !== videoFilePath;
+      sanitizedPath = out;
+    }
+    const buffer = fs.readFileSync(sanitizedPath);
     // 如果是临时文件，删除它
-    if (videoFilePath.includes(os.tmpdir())) {
-      try { fs.unlinkSync(videoFilePath); } catch {}
+    if (videoFilePath.includes(os.tmpdir())) { try { fs.unlinkSync(videoFilePath); } catch {} }
+    if (sanitized && sanitizedPath !== videoFilePath && sanitizedPath.includes(os.tmpdir())) {
+      try { fs.unlinkSync(sanitizedPath); } catch {}
     }
 
     // 以下逻辑直接复用 uploadVideo 的实现，确保返回结构一致
@@ -952,7 +983,7 @@ exports.analyzeUrl = async (req, res) => {
         parsed_data: parsedData,
         validation_status: validationStatus,
         metadata: {
-          filename: path.basename(videoFilePath),
+          filename: path.basename(sanitizedPath),
           filesize: stat.size,
           mimetype: 'video/mp4',
           analysis_time: analysisTime,
@@ -962,6 +993,7 @@ exports.analyzeUrl = async (req, res) => {
           prompt_version: 'v2.1',
           prompt_hash: typeof promptHash !== 'undefined' ? promptHash : null,
           recs_len: parsedData && Array.isArray(parsedData.recommendations) ? parsedData.recommendations.length : null,
+          sanitized
         }
       },
     };
@@ -980,7 +1012,12 @@ exports.analyzeUrl = async (req, res) => {
         poster_url: playbackMeta.poster_url || null,
         fallback_embed: playbackMeta.fallback_embed || null,
         expires_at: playbackMeta.expires_at || null,
-        diagnostics: playbackMeta.diagnostics || { strategy: 'yt-dlp', cache_hit: false }
+        diagnostics: {
+          ...(playbackMeta.diagnostics || { strategy: 'yt-dlp', cache_hit: false }),
+          sanitized,
+          ffmpeg: doSanitize ? 'map 0:v:0 0:a:0? -dn -sn -map_chapters -1 -c copy -map_metadata -1 -movflags +faststart' : 'disabled',
+          source_meta_removed: sanitized
+        }
       },
       ...response,
     });

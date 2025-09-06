@@ -68,7 +68,12 @@ async function downloadVideo(url, tokenId) {
   const cmd = [
     `"${ytdlpPath}"`,
     `"${url}"`,
-    '-f', 'best[ext=mp4]/best',
+    '--no-playlist',
+    '--no-write-description',
+    '--no-write-thumbnail',
+    '--no-write-info-json',
+    '--no-mtime',
+    '-f', 'mp4/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best',
     '--no-warnings',
     '--no-check-certificates',
     '--referer', 'https://www.tiktok.com/',
