@@ -33,7 +33,7 @@ export const BorderBeam = ({
       className={cn(
         'absolute inset-0 overflow-hidden rounded-[inherit] [mask-composite:exclude] [mask:linear-gradient(white,white)_padding-box,linear-gradient(white,white)]',
         'before:absolute before:aspect-square before:w-[var(--size)] before:animate-border-beam before:[animation-delay:var(--delay)] before:[background:conic-gradient(from_0deg,transparent,var(--color-from),var(--color-to),transparent_20%)] before:[offset-anchor:calc(var(--size)*0.5)_center] before:[offset-path:rect(0_auto_auto_0_round_200px)]',
-        className
+        className,
       )}
     />
   );

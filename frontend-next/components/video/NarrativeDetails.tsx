@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState } from 'react';
 
 type Pillars = {
   hook_0_3s?: number;
@@ -165,12 +165,18 @@ function buildNarrativeText(d: AnalysisData): string {
   return lines.join('\n');
 }
 
-export default function NarrativeDetails({ data, showHeading = true }: { data: AnalysisData; showHeading?: boolean }) {
+export default function NarrativeDetails({
+  data,
+  showHeading = true,
+}: { data: AnalysisData; showHeading?: boolean }) {
+  const [copied, setCopied] = useState(false);
   const text = buildNarrativeText(data);
 
   const doCopy = async () => {
     try {
       await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch (_) {
       // silent
     }
@@ -184,7 +190,7 @@ export default function NarrativeDetails({ data, showHeading = true }: { data: A
           {/* heading hidden by default in accordion usage */}
           <div />
           <Button variant="secondary" size="sm" onClick={doCopy} aria-label="Copy narrative">
-            Copy
+            {copied ? '✓ Copied' : 'Copy'}
           </Button>
         </div>
         {text.split('\n').map((line, idx) =>
@@ -212,7 +218,7 @@ export default function NarrativeDetails({ data, showHeading = true }: { data: A
       <CardHeader className="flex items-center justify-between gap-4 sm:flex-row sm:items-center">
         <CardTitle>Natural Language Narrative</CardTitle>
         <Button variant="secondary" onClick={doCopy}>
-          Copy
+          {copied ? '✓ Copied' : 'Copy'}
         </Button>
       </CardHeader>
       <CardContent>

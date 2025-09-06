@@ -1,13 +1,8 @@
-import {
-  percentToUnit,
-  normalizePillars,
-  cleanEmptyValue,
-  calculateTotalScore
-} from './normalize';
+import { calculateTotalScore, cleanEmptyValue, normalizePillars, percentToUnit } from './normalize';
 import { parseAnalysisResult } from './validation';
 
 // API base: env override, fallback to /api (for proxy)
-const API_BASE = (process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, '') || '/api');
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, '') || '/api';
 
 // 完整性检查 - 确保数据不是全默认值
 function hasRealData(data: any): boolean {
@@ -30,10 +25,7 @@ function hasRealData(data: any): boolean {
 }
 
 export class VideoAnalyzerAPI {
-  static async analyzeVideo(
-    file: File,
-    onProgress?: (progress: number) => void,
-  ): Promise<any> {
+  static async analyzeVideo(file: File, onProgress?: (progress: number) => void): Promise<any> {
     const formData = new FormData();
     formData.append('video', file);
 
@@ -63,7 +55,8 @@ export class VideoAnalyzerAPI {
             // 尝试解析错误响应以获取详细信息
             try {
               const errorResponse = JSON.parse(xhr.responseText);
-              const errorMessage = errorResponse.message || `Request failed with status ${xhr.status}`;
+              const errorMessage =
+                errorResponse.message || `Request failed with status ${xhr.status}`;
               console.error('[API Error]', errorMessage, errorResponse);
               reject(new Error(errorMessage));
             } catch (parseError) {
@@ -86,9 +79,7 @@ export class VideoAnalyzerAPI {
         xhr.send(formData);
       });
     } catch (error) {
-      throw new Error(
-        error instanceof Error ? error.message : 'Failed to analyze video',
-      );
+      throw new Error(error instanceof Error ? error.message : 'Failed to analyze video');
     }
   }
 
@@ -135,7 +126,7 @@ export class VideoAnalyzerAPI {
             // 规范化pillars分数到0-10
             validatedData.pillars = normalizePillars(
               validatedData.pillars,
-              validatedData.pillars_meta
+              validatedData.pillars_meta,
             );
 
             // 🔍 调试日志 4：规范化后的pillars
@@ -156,16 +147,20 @@ export class VideoAnalyzerAPI {
                 ...segment,
                 issue: cleanEmptyValue(segment.issue),
                 risk: cleanEmptyValue(segment.risk),
-                fix_hint: cleanEmptyValue(segment.fix_hint)
+                fix_hint: cleanEmptyValue(segment.fix_hint),
               }));
             }
 
             // 规范化百分比值
             if (validatedData.overview.confidence) {
-              validatedData.overview.confidence_value = percentToUnit(validatedData.overview.confidence);
+              validatedData.overview.confidence_value = percentToUnit(
+                validatedData.overview.confidence,
+              );
             }
             if (validatedData.forecast.pass_probability) {
-              validatedData.forecast.pass_probability_value = percentToUnit(validatedData.forecast.pass_probability);
+              validatedData.forecast.pass_probability_value = percentToUnit(
+                validatedData.forecast.pass_probability,
+              );
             }
 
             // 🔍 调试日志 6：最终返回的数据
@@ -173,7 +168,7 @@ export class VideoAnalyzerAPI {
               score: validatedData.overview.score,
               pillars: validatedData.pillars,
               timeline_length: validatedData.timeline?.length || 0,
-              recommendations_length: validatedData.recommendations?.length || 0
+              recommendations_length: validatedData.recommendations?.length || 0,
             });
 
             // 完整性检查 - 确保不是全默认值
@@ -189,10 +184,10 @@ export class VideoAnalyzerAPI {
                 validation: {
                   ...validationStatus,
                   completeness_check_failed: true,
-                  message: 'Data appears to be all defaults, showing raw data instead'
+                  message: 'Data appears to be all defaults, showing raw data instead',
                 },
                 warning: 'Data completeness check failed - showing raw data',
-                rawResponse: result.raw_response || result.full_analysis
+                rawResponse: result.raw_response || result.full_analysis,
               };
             }
 
@@ -202,7 +197,7 @@ export class VideoAnalyzerAPI {
               metadata: result.metadata,
               validation: validationStatus,
               warning: hasWarning,
-              rawResponse: result.raw_response || result.full_analysis // 包含原始响应
+              rawResponse: result.raw_response || result.full_analysis, // 包含原始响应
             };
           } else {
             // 验证失败，返回null，需要特殊处理
@@ -226,10 +221,10 @@ export class VideoAnalyzerAPI {
               metadata: result.metadata,
               validation: {
                 ...validationStatus,
-                zod_validation_failed: true
+                zod_validation_failed: true,
               },
               warning: hasWarning || 'Data validation failed but showing raw data',
-              rawResponse: result.raw_response || result.full_analysis
+              rawResponse: result.raw_response || result.full_analysis,
             };
           }
         } catch (e) {
@@ -252,10 +247,10 @@ export class VideoAnalyzerAPI {
             validation: {
               ...validationStatus,
               parse_error: true,
-              error_message: e instanceof Error ? e.message : 'Unknown error'
+              error_message: e instanceof Error ? e.message : 'Unknown error',
             },
             warning: hasWarning || 'Parse error occurred but showing raw data',
-            rawResponse: result.raw_response || result.full_analysis
+            rawResponse: result.raw_response || result.full_analysis,
           };
         }
       } // 关闭 if (result.parsed_data) 块
@@ -277,13 +272,16 @@ export class VideoAnalyzerAPI {
 
         const validatedData = parseAnalysisResult(analysisData);
 
-        console.log('[调试-fallback] 使用full_analysis解析，结果:', validatedData ? '成功' : 'null');
+        console.log(
+          '[调试-fallback] 使用full_analysis解析，结果:',
+          validatedData ? '成功' : 'null',
+        );
 
         if (validatedData) {
           // 应用相同的规范化逻辑
           validatedData.pillars = normalizePillars(
             validatedData.pillars,
-            validatedData.pillars_meta
+            validatedData.pillars_meta,
           );
 
           if (!validatedData.overview.score || validatedData.overview.score === 0) {
@@ -295,15 +293,19 @@ export class VideoAnalyzerAPI {
               ...segment,
               issue: cleanEmptyValue(segment.issue),
               risk: cleanEmptyValue(segment.risk),
-              fix_hint: cleanEmptyValue(segment.fix_hint)
+              fix_hint: cleanEmptyValue(segment.fix_hint),
             }));
           }
 
           if (validatedData.overview.confidence) {
-            validatedData.overview.confidence_value = percentToUnit(validatedData.overview.confidence);
+            validatedData.overview.confidence_value = percentToUnit(
+              validatedData.overview.confidence,
+            );
           }
           if (validatedData.forecast.pass_probability) {
-            validatedData.forecast.pass_probability_value = percentToUnit(validatedData.forecast.pass_probability);
+            validatedData.forecast.pass_probability_value = percentToUnit(
+              validatedData.forecast.pass_probability,
+            );
           }
 
           return {
@@ -312,7 +314,7 @@ export class VideoAnalyzerAPI {
             metadata: result.metadata,
             validation: validationStatus,
             warning: hasWarning,
-            rawResponse: result.raw_response || result.full_analysis
+            rawResponse: result.raw_response || result.full_analysis,
           };
         }
       } catch (e) {
@@ -324,7 +326,7 @@ export class VideoAnalyzerAPI {
           metadata: result.metadata,
           validation: validationStatus,
           warning: hasWarning,
-          rawResponse: result.raw_response || result.full_analysis
+          rawResponse: result.raw_response || result.full_analysis,
         };
       }
     } // 关闭 if (rawResults?.analysisResult) 块
@@ -333,7 +335,7 @@ export class VideoAnalyzerAPI {
     return {
       type: 'text',
       fullText: JSON.stringify(rawResults, null, 2),
-      metadata: null
+      metadata: null,
     };
   }
 }

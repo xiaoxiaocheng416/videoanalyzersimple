@@ -1,22 +1,38 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Download, RefreshCw, FileText, Info, Trophy, Target, Activity, BarChart3, Shield, AlertTriangle } from 'lucide-react';
+import {
+  Activity,
+  AlertTriangle,
+  BarChart3,
+  Download,
+  FileText,
+  Info,
+  RefreshCw,
+  Shield,
+  Target,
+  Trophy,
+} from 'lucide-react';
+import React, { useMemo } from 'react';
 
+import NarrativeDetails from '@/components/video/NarrativeDetails';
+import type { AnalysisResult } from '@/lib/validation';
+import { FlagsPills } from './FlagsPills';
 // 导入新组件
 import { OverviewCard } from './OverviewCard';
-import { TimelineAnalysis } from './TimelineAnalysis';
 import { RecommendationsList } from './RecommendationsList';
-import { FlagsPills } from './FlagsPills';
-import SummaryTab from './SummaryTab';
-import { AnalysisResult } from '@/lib/validation';
-import NarrativeDetails from '@/components/video/NarrativeDetails';
+import EditableSummary from './EditableSummary';
+import { TimelineAnalysis } from './TimelineAnalysis';
 
 // ---- local types for data quality ----
 type DataQualityObj = {
@@ -63,6 +79,14 @@ interface ResultsDisplayProps {
 }
 
 export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: ResultsDisplayProps) {
+  // 生成analysisId（使用timestamp或metadata.timestamp）
+  const analysisId = useMemo(() => {
+    if (results.metadata?.timestamp) {
+      return results.metadata.timestamp;
+    }
+    return Date.now().toString();
+  }, [results.metadata?.timestamp]);
+
   // 渲染结构化数据
   if (results.type === 'structured' && results.data) {
     const data = results.data;
@@ -77,10 +101,8 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
     const dataCompleteness =
       typeof dqRaw === 'object' && dqRaw !== null
         ? // 对象时优先 completeness，其次 score
-          (dqRaw as DataQualityObj).completeness ??
-          (dqRaw as DataQualityObj).score ??
-          undefined
-        : (dqRaw as number | string | null | undefined) ?? undefined;
+          ((dqRaw as DataQualityObj).completeness ?? (dqRaw as DataQualityObj).score ?? undefined)
+        : ((dqRaw as number | string | null | undefined) ?? undefined);
 
     return (
       <div className="w-full space-y-6">
@@ -106,9 +128,7 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold">Analysis Complete</h2>
-            <p className="text-muted-foreground mt-1">
-              TikTok Shop Video Analysis Results
-            </p>
+            <p className="text-muted-foreground mt-1">TikTok Shop Video Analysis Results</p>
           </div>
           <div className="flex gap-2">
             {onDownloadReport && (
@@ -134,19 +154,34 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
         {/* 主要内容区域 - 使用Tabs */}
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className="flex w-full overflow-hidden gap-1 p-1 bg-muted rounded-lg">
-            <TabsTrigger value="overview" className="flex-1 basis-0 min-w-0 justify-center overflow-hidden text-ellipsis whitespace-nowrap text-xs sm:text-sm">
+            <TabsTrigger
+              value="overview"
+              className="flex-1 basis-0 min-w-0 justify-center overflow-hidden text-ellipsis whitespace-nowrap text-xs sm:text-sm"
+            >
               Overview
             </TabsTrigger>
-            <TabsTrigger value="timeline" className="flex-1 basis-0 min-w-0 justify-center overflow-hidden text-ellipsis whitespace-nowrap text-xs sm:text-sm">
+            <TabsTrigger
+              value="timeline"
+              className="flex-1 basis-0 min-w-0 justify-center overflow-hidden text-ellipsis whitespace-nowrap text-xs sm:text-sm"
+            >
               Timeline
             </TabsTrigger>
-            <TabsTrigger value="recommendations" className="flex-1 basis-0 min-w-0 justify-center overflow-hidden text-ellipsis whitespace-nowrap text-xs sm:text-sm">
+            <TabsTrigger
+              value="recommendations"
+              className="flex-1 basis-0 min-w-0 justify-center overflow-hidden text-ellipsis whitespace-nowrap text-xs sm:text-sm"
+            >
               Suggest
             </TabsTrigger>
-            <TabsTrigger value="summary" className="flex-1 basis-0 min-w-0 justify-center overflow-hidden text-ellipsis whitespace-nowrap text-xs sm:text-sm">
+            <TabsTrigger
+              value="summary"
+              className="flex-1 basis-0 min-w-0 justify-center overflow-hidden text-ellipsis whitespace-nowrap text-xs sm:text-sm"
+            >
               Summary
             </TabsTrigger>
-            <TabsTrigger value="details" className="flex-1 basis-0 min-w-0 justify-center overflow-hidden text-ellipsis whitespace-nowrap text-xs sm:text-sm">
+            <TabsTrigger
+              value="details"
+              className="flex-1 basis-0 min-w-0 justify-center overflow-hidden text-ellipsis whitespace-nowrap text-xs sm:text-sm"
+            >
               Details
             </TabsTrigger>
           </TabsList>
@@ -159,8 +194,8 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
                 typeof dataCompleteness === 'number'
                   ? dataCompleteness
                   : typeof dataCompleteness === 'string'
-                  ? parseFloat(dataCompleteness) || undefined
-                  : undefined
+                    ? Number.parseFloat(dataCompleteness) || undefined
+                    : undefined
               }
             />
 
@@ -215,9 +250,7 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
                     </div>
                   )}
                   {data.forecast.notes && (
-                    <p className="text-sm text-muted-foreground mt-2">
-                      {data.forecast.notes}
-                    </p>
+                    <p className="text-sm text-muted-foreground mt-2">{data.forecast.notes}</p>
                   )}
                 </CardContent>
               </Card>
@@ -236,7 +269,11 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
           </TabsContent>
 
           <TabsContent value="summary" className="mt-6">
-            <SummaryTab summary={(data as any)?.improvement_summary} />
+            <EditableSummary
+              analysisId={analysisId}
+              aiText={(data as any)?.improvement_summary || ''}
+              userText={undefined}
+            />
           </TabsContent>
 
           <TabsContent value="details" className="mt-6">
@@ -246,9 +283,7 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
                   <Shield className="h-5 w-5" />
                   Analysis Data Details
                 </CardTitle>
-                <CardDescription>
-                  Raw AI response and normalized data
-                </CardDescription>
+                <CardDescription>Raw AI response and normalized data</CardDescription>
               </CardHeader>
               <CardContent>
                 <Accordion type="single" collapsible className="w-full">
@@ -257,7 +292,9 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
                     <AccordionItem value="ai-response">
                       <AccordionTrigger className="font-medium">
                         <div className="inline-flex items-center gap-2">
-                          <span className="w-5 inline-flex justify-center" aria-hidden>🤖</span>
+                          <span className="w-5 inline-flex justify-center" aria-hidden>
+                            🤖
+                          </span>
                           <span>Raw AI Response (Actual Output)</span>
                         </div>
                       </AccordionTrigger>
@@ -266,11 +303,13 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
                           <p className="text-xs text-muted-foreground mb-2">
                             This is the exact response from the AI model:
                           </p>
-                          <pre className="bg-muted/50 rounded-lg p-4 overflow-x-auto text-xs max-h-[400px] overflow-y-auto">
-                            {typeof results.rawResponse === 'string'
-                              ? results.rawResponse
-                              : JSON.stringify(results.rawResponse, null, 2)}
-                          </pre>
+                          <div className="overflow-x-auto max-w-full">
+                            <pre className="bg-muted/50 rounded-lg p-4 text-xs max-h-[400px] overflow-y-auto">
+                              {typeof results.rawResponse === 'string'
+                                ? results.rawResponse
+                                : JSON.stringify(results.rawResponse, null, 2)}
+                            </pre>
+                          </div>
                         </div>
                       </AccordionContent>
                     </AccordionItem>
@@ -280,7 +319,9 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
                   <AccordionItem value="normalized">
                     <AccordionTrigger className="font-medium">
                       <div className="inline-flex items-center gap-2">
-                        <span className="w-5 inline-flex justify-center" aria-hidden>📊</span>
+                        <span className="w-5 inline-flex justify-center" aria-hidden>
+                          📊
+                        </span>
                         <span>Normalized Data (After Processing)</span>
                       </div>
                     </AccordionTrigger>
@@ -289,9 +330,11 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
                         <p className="text-xs text-muted-foreground mb-2">
                           This is the data after validation and normalization:
                         </p>
-                        <pre className="bg-muted/50 rounded-lg p-4 overflow-x-auto text-xs max-h-[400px] overflow-y-auto">
-                          {JSON.stringify(data, null, 2)}
-                        </pre>
+                        <div className="overflow-x-auto max-w-full">
+                          <pre className="bg-muted/50 rounded-lg p-4 text-xs max-h-[400px] overflow-y-auto">
+                            {JSON.stringify(data, null, 2)}
+                          </pre>
+                        </div>
                       </div>
                     </AccordionContent>
                   </AccordionItem>
@@ -301,7 +344,9 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
                     <AccordionItem value="validation">
                       <AccordionTrigger className="font-medium">
                         <div className="inline-flex items-center gap-2">
-                          <span className="w-5 inline-flex justify-center" aria-hidden>✅</span>
+                          <span className="w-5 inline-flex justify-center" aria-hidden>
+                            ✅
+                          </span>
                           <span>Validation Status</span>
                         </div>
                       </AccordionTrigger>
@@ -309,15 +354,27 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
                         <div className="space-y-2">
                           <div className="grid grid-cols-2 gap-2 text-sm">
                             <div>Valid JSON:</div>
-                            <div className={validation.is_valid_json ? 'text-green-600' : 'text-red-600'}>
+                            <div
+                              className={
+                                validation.is_valid_json ? 'text-green-600' : 'text-red-600'
+                              }
+                            >
                               {validation.is_valid_json ? '✓ Yes' : '✗ No'}
                             </div>
                             <div>Complete Structure:</div>
-                            <div className={validation.is_complete_structure ? 'text-green-600' : 'text-red-600'}>
+                            <div
+                              className={
+                                validation.is_complete_structure ? 'text-green-600' : 'text-red-600'
+                              }
+                            >
                               {validation.is_complete_structure ? '✓ Yes' : '✗ No'}
                             </div>
                             <div>Has Actual Scores:</div>
-                            <div className={validation.has_actual_scores ? 'text-green-600' : 'text-red-600'}>
+                            <div
+                              className={
+                                validation.has_actual_scores ? 'text-green-600' : 'text-red-600'
+                              }
+                            >
                               {validation.has_actual_scores ? '✓ Yes' : '✗ No'}
                             </div>
                           </div>
@@ -346,7 +403,9 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
                   <AccordionItem value="narrative">
                     <AccordionTrigger className="font-medium">
                       <div className="inline-flex items-center gap-2">
-                        <span className="w-5 inline-flex justify-center" aria-hidden>📝</span>
+                        <span className="w-5 inline-flex justify-center" aria-hidden>
+                          📝
+                        </span>
                         <span>Natural Language Narrative</span>
                       </div>
                     </AccordionTrigger>
@@ -370,7 +429,7 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
       overview: '',
       scoring: '',
       improvements: '',
-      full: text
+      full: text,
     };
 
     const overviewMatch = text.match(/##\s*Overall Assessment.*?(?=##|$)/s);
@@ -435,9 +494,7 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Analysis Complete</h2>
-          <p className="text-muted-foreground mt-1">
-            TikTok Shop Video Analysis Results
-          </p>
+          <p className="text-muted-foreground mt-1">TikTok Shop Video Analysis Results</p>
         </div>
         <div className="flex gap-2">
           {onDownloadReport && (
@@ -471,7 +528,9 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
               <Activity className="h-8 w-8 text-primary" />
               <div>
                 <p className="text-sm text-muted-foreground">File Size</p>
-                <p className="text-xl font-bold">{((results.metadata.filesize || 0) / 1024 / 1024).toFixed(1)}MB</p>
+                <p className="text-xl font-bold">
+                  {((results.metadata.filesize || 0) / 1024 / 1024).toFixed(1)}MB
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -482,7 +541,9 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
               <Target className="h-8 w-8 text-primary" />
               <div>
                 <p className="text-sm text-muted-foreground">Analysis Time</p>
-                <p className="text-xl font-bold">{(results.metadata.analysis_time / 1000).toFixed(1)}s</p>
+                <p className="text-xl font-bold">
+                  {(results.metadata.analysis_time / 1000).toFixed(1)}s
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -501,8 +562,8 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
             <AccordionItem value="analysis">
               <AccordionTrigger>Complete Analysis Results</AccordionTrigger>
               <AccordionContent>
-                <div className="prose prose-sm max-w-none dark:prose-invert">
-                  <div className="bg-muted/30 rounded-lg p-6 max-h-[600px] overflow-y-auto">
+                <div className="prose prose-sm max-w-full dark:prose-invert">
+                  <div className="bg-muted/30 rounded-lg p-6 max-h-[600px] overflow-y-auto overflow-x-auto">
                     {formatAnalysisText(results.fullText || '')}
                   </div>
                 </div>

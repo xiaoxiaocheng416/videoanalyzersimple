@@ -8,9 +8,11 @@ export function splitIntoParagraphs(text: string, maxSentencesPerPara = 3): stri
   const sentences = normalized.split(/(?<=[.!?])\s+(?=[A-Z])/);
   const paras: string[] = [];
   for (let i = 0; i < sentences.length; i += maxSentencesPerPara) {
-    const chunk = sentences.slice(i, i + maxSentencesPerPara).join(' ').trim();
+    const chunk = sentences
+      .slice(i, i + maxSentencesPerPara)
+      .join(' ')
+      .trim();
     if (chunk) paras.push(chunk);
   }
   return paras;
 }
-

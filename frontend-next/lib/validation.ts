@@ -71,43 +71,47 @@ export const AnalysisResultSchema = z.object({
     confidence: '70%',
     summary: '',
   }),
-  
+
   pillars: PillarsSchema.default({
     hook_0_3s: 0,
     display_clarity: 0,
     creator_trust: 0,
     cta_effectiveness: 0,
   }),
-  
-  pillars_meta: z.object({
-    scale: z.enum(['weighted_points', 'raw_0_10']).optional(),
-    weights: z.object({
-      hook: z.number().optional(),
-      display: z.number().optional(),
-      trust: z.number().optional(),
-      cta: z.number().optional(),
-    }).optional(),
-  }).optional(),
-  
+
+  pillars_meta: z
+    .object({
+      scale: z.enum(['weighted_points', 'raw_0_10']).optional(),
+      weights: z
+        .object({
+          hook: z.number().optional(),
+          display: z.number().optional(),
+          trust: z.number().optional(),
+          cta: z.number().optional(),
+        })
+        .optional(),
+    })
+    .optional(),
+
   timeline: z.array(TimelineSegmentSchema).default([]),
-  
+
   forecast: ForecastSchema.default({
     pass_probability: '50%',
     revenue_forecast: '',
     gmv_range: '',
     notes: '',
   }),
-  
+
   recommendations: z.array(RecommendationSchema).default([]),
-  
+
   flags: z.array(FlagSchema).default([]),
-  
+
   top_opportunities: TopOpportunitiesSchema.default({
     must_fix: [],
     quick_wins: [],
     technical_optimizations: [],
   }),
-  
+
   raw_notes: z.string().optional(),
   improvement_summary: z.string().default(''),
 });
@@ -133,19 +137,19 @@ export const parseAnalysisResult = (data: unknown): AnalysisResult | null => {
       console.error('Invalid data type for analysis result:', typeof data);
       return null;
     }
-    
+
     const result = AnalysisResultSchema.parse(data);
-    
+
     // 验证是否是真实数据而不是默认值
-    const hasRealData = 
+    const hasRealData =
       result.overview?.score > 0 &&
       result.timeline?.length > 0 &&
       result.recommendations?.length > 0;
-    
+
     if (!hasRealData) {
       console.warn('Parsed result appears to be default values only');
     }
-    
+
     return result;
   } catch (error) {
     console.error('Analysis result validation failed:', error);

@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useCallback, useState } from 'react';
-import { useDropzone } from 'react-dropzone';
-import { Upload, Video, X, CheckCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { CheckCircle, Upload, Video, X } from 'lucide-react';
+import React, { useCallback, useState } from 'react';
+import { useDropzone } from 'react-dropzone';
 
 interface VideoUploaderProps {
   onFileSelect: (file: File) => void;
@@ -54,7 +54,7 @@ export function VideoUploader({ onFileSelect, onRemove, isUploading }: VideoUplo
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
   };
 
   if (selectedFile && preview) {
@@ -67,18 +67,14 @@ export function VideoUploader({ onFileSelect, onRemove, isUploading }: VideoUplo
                 <Skeleton className="w-32 h-20 rounded-lg" />
               ) : (
                 <>
-                  <video
-                    src={preview}
-                    className="w-32 h-20 object-cover rounded-lg"
-                    muted
-                  />
+                  <video src={preview} className="w-32 h-20 object-cover rounded-lg" muted />
                   <div className="absolute inset-0 bg-black/20 rounded-lg flex items-center justify-center">
                     <Video className="w-8 h-8 text-white" />
                   </div>
                 </>
               )}
             </div>
-            
+
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-2">
                 <h3 className="font-semibold text-lg truncate">{selectedFile.name}</h3>
@@ -89,15 +85,17 @@ export function VideoUploader({ onFileSelect, onRemove, isUploading }: VideoUplo
                   </Badge>
                 )}
               </div>
-              
+
               <div className="flex flex-wrap gap-2">
                 <Badge variant="outline">{formatFileSize(selectedFile.size)}</Badge>
-                <Badge variant="outline">{selectedFile.type?.split('/')[1]?.toUpperCase() || 'VIDEO'}</Badge>
+                <Badge variant="outline">
+                  {selectedFile.type?.split('/')[1]?.toUpperCase() || 'VIDEO'}
+                </Badge>
                 {selectedFile.size > 100 * 1024 * 1024 && (
                   <Badge variant="destructive">Large File</Badge>
                 )}
               </div>
-              
+
               {isUploading && (
                 <div className="mt-3 space-y-2">
                   <Skeleton className="h-2 w-full" />
@@ -107,12 +105,7 @@ export function VideoUploader({ onFileSelect, onRemove, isUploading }: VideoUplo
             </div>
 
             {!isUploading && (
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={handleRemove}
-                className="flex-shrink-0"
-              >
+              <Button size="icon" variant="ghost" onClick={handleRemove} className="flex-shrink-0">
                 <X className="h-4 w-4" />
               </Button>
             )}
@@ -134,7 +127,7 @@ export function VideoUploader({ onFileSelect, onRemove, isUploading }: VideoUplo
       )}
     >
       <input {...getInputProps()} />
-      
+
       <div className="flex flex-col items-center justify-center p-12 text-center">
         <div
           className={cn(
@@ -153,18 +146,14 @@ export function VideoUploader({ onFileSelect, onRemove, isUploading }: VideoUplo
         <h3 className="text-lg font-semibold mb-2">
           {isDragActive ? 'Drop your video here' : 'Upload your TikTok Shop video'}
         </h3>
-        
-        <p className="text-sm text-muted-foreground mb-4">
-          Drag and drop or click to select
-        </p>
+
+        <p className="text-sm text-muted-foreground mb-4">Drag and drop or click to select</p>
 
         <div className="flex flex-wrap gap-2 justify-center">
           <Badge variant="secondary">MP4</Badge>
         </div>
 
-        <p className="text-xs text-muted-foreground mt-4">
-          Max size: 50MB
-        </p>
+        <p className="text-xs text-muted-foreground mt-4">Max size: 50MB</p>
       </div>
     </div>
   );

@@ -1,10 +1,10 @@
 'use client';
 
-import React from 'react';
-import { Loader2, CheckCircle, Upload, Brain, FileText } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { Brain, CheckCircle, FileText, Loader2, Upload } from 'lucide-react';
+import type React from 'react';
 
 interface AnalysisStep {
   id: string;
@@ -26,16 +26,24 @@ export function AnalysisProgress({ currentStep, progress }: AnalysisProgressProp
       label: 'Uploading Video',
       description: 'Securely transferring your video file',
       icon: <Upload className="h-5 w-5" />,
-      status: currentStep === 'uploading' ? 'active' : 
-              currentStep === 'analyzing' || currentStep === 'generating' ? 'completed' : 'pending',
+      status:
+        currentStep === 'uploading'
+          ? 'active'
+          : currentStep === 'analyzing' || currentStep === 'generating'
+            ? 'completed'
+            : 'pending',
     },
     {
       id: 'analyzing',
       label: 'AI Analysis',
       description: 'Processing video content with AI',
       icon: <Brain className="h-5 w-5" />,
-      status: currentStep === 'analyzing' ? 'active' : 
-              currentStep === 'generating' ? 'completed' : 'pending',
+      status:
+        currentStep === 'analyzing'
+          ? 'active'
+          : currentStep === 'generating'
+            ? 'completed'
+            : 'pending',
     },
     {
       id: 'generating',
@@ -51,9 +59,9 @@ export function AnalysisProgress({ currentStep, progress }: AnalysisProgressProp
       case 'uploading':
         return Math.min(progress, 33);
       case 'analyzing':
-        return Math.min(33 + (progress * 0.34), 67);
+        return Math.min(33 + progress * 0.34, 67);
       case 'generating':
-        return Math.min(67 + (progress * 0.33), 100);
+        return Math.min(67 + progress * 0.33, 100);
       default:
         return 0;
     }
@@ -65,9 +73,7 @@ export function AnalysisProgress({ currentStep, progress }: AnalysisProgressProp
         <div className="space-y-8">
           <div className="text-center">
             <h2 className="text-2xl font-semibold mb-2">Analyzing Your Video</h2>
-            <p className="text-muted-foreground">
-              Please wait while we process your content
-            </p>
+            <p className="text-muted-foreground">Please wait while we process your content</p>
           </div>
 
           <div className="space-y-2">
@@ -118,7 +124,9 @@ export function AnalysisProgress({ currentStep, progress }: AnalysisProgressProp
                   <p
                     className={cn(
                       'text-sm',
-                      step.status === 'pending' ? 'text-muted-foreground/70' : 'text-muted-foreground',
+                      step.status === 'pending'
+                        ? 'text-muted-foreground/70'
+                        : 'text-muted-foreground',
                     )}
                   >
                     {step.description}

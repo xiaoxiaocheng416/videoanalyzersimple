@@ -1,15 +1,17 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { VideoUploader } from '@/components/video/VideoUploader';
-import { AnalysisProgress } from '@/components/video/AnalysisProgress';
-import { ResultsDisplay } from '@/components/video/ResultsDisplay';
-import { useVideoAnalyzer } from '@/lib/store';
-import { VideoAnalyzerAPI } from '@/lib/api';
-import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card } from '@/components/ui/card';
+import { AnalysisProgress } from '@/components/video/AnalysisProgress';
+import { ResultsDisplay } from '@/components/video/ResultsDisplay';
+import VideoPane from '@/components/video/VideoPane';
+import { VideoUploader } from '@/components/video/VideoUploader';
+import { VideoAnalyzerAPI } from '@/lib/api';
+import { useVideoAnalyzer } from '@/lib/store';
+import { clearAllSummaryDrafts } from '../utils/summaryDraft';
+import { AlertCircle } from 'lucide-react';
 import Image from 'next/image';
+import React, { useState, useEffect, useRef } from 'react';
 
 export default function HomePage() {
   const {
@@ -30,14 +32,46 @@ export default function HomePage() {
     'uploading' | 'analyzing' | 'generating'
   >('uploading');
 
+  // Video player source (page-level state)
+  const [videoSrc, setVideoSrc] = useState<string | null>(null);
+  const [videoPoster, setVideoPoster] = useState<string | null>(null);
+  const [videoType, setVideoType] = useState<'upload' | 'link'>('upload');
+  const [lastLinkUrl, setLastLinkUrl] = useState<string | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
+
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (blobUrlRef.current) {
+        try {
+          URL.revokeObjectURL(blobUrlRef.current);
+        } catch {}
+      }
+    };
+  }, []);
+
   const handleFileSelect = async (selectedFile: File) => {
+    clearAllSummaryDrafts(); // Clear drafts when starting new analysis
     setFile(selectedFile);
     setStage('uploading');
     setProgress(0);
 
     try {
       setCurrentAnalysisStep('uploading');
-      
+      // Prepare a blob URL for immediate playback
+      try {
+        // Revoke old blob URL if exists
+        if (blobUrlRef.current) {
+          URL.revokeObjectURL(blobUrlRef.current);
+        }
+        const blobUrl = URL.createObjectURL(selectedFile);
+        blobUrlRef.current = blobUrl;
+        setVideoSrc(blobUrl);
+        setVideoType('upload');
+        setVideoPoster(null);
+        setLastLinkUrl(null);
+      } catch {}
+
       const rawResults = await VideoAnalyzerAPI.analyzeVideo(selectedFile, (uploadProgress) => {
         if (uploadProgress < 100) {
           setProgress(uploadProgress);
@@ -78,6 +112,19 @@ export default function HomePage() {
   };
 
   const handleAnalyzeAgain = () => {
+    console.log('[ClearDrafts] clearAllSummaryDrafts called from handleAnalyzeAgain');
+    clearAllSummaryDrafts(); // Clear all summary drafts when analyzing another
+    // Revoke blob if needed
+    if (blobUrlRef.current) {
+      try {
+        URL.revokeObjectURL(blobUrlRef.current);
+      } catch {}
+      blobUrlRef.current = null;
+    }
+    setVideoSrc(null);
+    setVideoPoster(null);
+    setLastLinkUrl(null);
+    setVideoType('upload');
     reset();
   };
 
@@ -85,7 +132,7 @@ export default function HomePage() {
   const [linkUrl, setLinkUrl] = useState('');
   const [linkError, setLinkError] = useState<string | null>(null);
   // API base for direct calls (env override, fallback to /api)
-  const API_BASE = (process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, '') || '/api');
+  const API_BASE = process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, '') || '/api';
 
   const handleAnalyzeUrl = async () => {
     setLinkError(null);
@@ -94,6 +141,7 @@ export default function HomePage() {
       setLinkError('请输入有效的 TikTok 链接');
       return;
     }
+    clearAllSummaryDrafts(); // Clear drafts when starting new URL analysis
     try {
       setStage('uploading');
       setProgress(0);
@@ -114,6 +162,29 @@ export default function HomePage() {
         raw.analysisResult ? raw : { analysisResult: raw.analysis },
       );
       setResults(formatted);
+      // Prefer direct playable url for link mode, fallback to HLS on Safari
+      const playable = raw?.meta?.playable_url || raw?.analysisResult?.metadata?.playable_url || null;
+      const hls = raw?.meta?.hls_url || raw?.analysisResult?.metadata?.hls_url || null;
+      const poster = raw?.meta?.poster_url || raw?.analysisResult?.metadata?.poster_url || null;
+      setVideoType('link');
+      setLastLinkUrl(url);
+      if (typeof playable === 'string' && playable.length > 0) {
+        setVideoSrc(playable);
+        setVideoPoster(poster ?? null);
+      } else if (typeof hls === 'string' && hls.length > 0) {
+        const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+        const isSafari = /Safari\//.test(ua) && !/Chrome\//.test(ua);
+        if (isSafari) {
+          setVideoSrc(hls);
+          setVideoPoster(poster ?? null);
+        } else {
+          setVideoSrc(null);
+          setVideoPoster(null);
+        }
+      } else {
+        setVideoSrc(null);
+        setVideoPoster(null);
+      }
       setStage('complete');
     } catch (e) {
       setError(e instanceof Error ? e.message : '链接分析失败');
@@ -123,7 +194,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="container mx-auto px-4 py-12 max-w-2xl">
+      <div className="container mx-auto px-4 py-12 max-w-6xl">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
             <Image
@@ -135,10 +206,8 @@ export default function HomePage() {
               priority
             />
           </div>
-          
-          <h1 className="text-2xl font-normal text-gray-900">
-            video analyzer
-          </h1>
+
+          <h1 className="text-2xl font-normal text-gray-900">video analyzer</h1>
         </div>
 
         {stage === 'idle' && (
@@ -167,9 +236,7 @@ export default function HomePage() {
                     Analyze link
                   </button>
                 </div>
-                {linkError && (
-                  <p className="text-xs text-red-600">{linkError}</p>
-                )}
+                {linkError && <p className="text-xs text-red-600">{linkError}</p>}
               </div>
             </Card>
           </div>
@@ -182,8 +249,20 @@ export default function HomePage() {
         )}
 
         {stage === 'complete' && results && (
-          <div className="w-full">
-            <ResultsDisplay results={results} onAnalyzeAgain={handleAnalyzeAgain} />
+          <div className="w-full grid grid-cols-1 lg:grid-cols-[384px_minmax(0,1fr)] gap-6 items-start">
+            {/* Left: sticky video pane (desktop) */}
+            <div className="lg:sticky lg:top-6 order-1 lg:order-none">
+              <VideoPane
+                src={videoSrc}
+                poster={videoPoster}
+                type={videoType}
+                linkUrl={lastLinkUrl}
+              />
+            </div>
+            {/* Right: results */}
+            <div className="min-w-0">
+              <ResultsDisplay results={results} onAnalyzeAgain={handleAnalyzeAgain} />
+            </div>
           </div>
         )}
 

@@ -8,7 +8,7 @@ interface VideoAnalyzerState {
   progress: number;
   results: any | null;
   error: string | null;
-  
+
   setStage: (stage: AnalysisStage) => void;
   setFile: (file: File | null) => void;
   setProgress: (progress: number) => void;
@@ -23,17 +23,18 @@ export const useVideoAnalyzer = create<VideoAnalyzerState>((set) => ({
   progress: 0,
   results: null,
   error: null,
-  
+
   setStage: (stage) => set({ stage }),
   setFile: (file) => set({ file }),
   setProgress: (progress) => set({ progress }),
   setResults: (results) => set({ results, stage: 'complete' }),
   setError: (error) => set({ error, stage: 'error' }),
-  reset: () => set({ 
-    stage: 'idle', 
-    file: null, 
-    progress: 0, 
-    results: null, 
-    error: null 
-  }),
+  reset: () =>
+    set({
+      stage: 'idle',
+      file: null,
+      progress: 0,
+      results: null,
+      error: null,
+    }),
 }));

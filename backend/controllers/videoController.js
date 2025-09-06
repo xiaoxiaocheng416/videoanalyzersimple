@@ -4,7 +4,125 @@ const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const { getOrDownloadVideo } = require('../utils/videoCacheManager');
 let ytdlp;
+// simple concurrency control for playback meta builds per id/url
+const playbackLocks = new Map();
+
+// --- Simple in-memory cache for playback meta (tiktok_id keyed) ---
+const playbackCache = new Map();
+const SUCCESS_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+const FAIL_TTL_MS = 30 * 60 * 1000; // 30m
+
+async function validateMp4Url(url) {
+  try {
+    // Try a ranged GET for 1-2 bytes to check 206 Partial Content support
+    const resp = await fetch(url, {
+      method: 'GET',
+      headers: { Range: 'bytes=0-1' },
+      redirect: 'follow',
+    });
+    const ct = resp.headers.get('content-type') || '';
+    const acceptRanges = resp.headers.get('accept-ranges') || '';
+    const cl = resp.headers.get('content-length') || '';
+    const okStatus = resp.status === 206 || resp.status === 200;
+    const isMp4 = ct.includes('mp4') || url.endsWith('.mp4');
+    const hasRanges = acceptRanges.includes('bytes') || resp.status === 206;
+    const hasCL = !!cl;
+    return okStatus && isMp4 && hasRanges && hasCL;
+  } catch (e) {
+    return false;
+  }
+}
+
+function selectPlayableFromFormats(formats = []) {
+  if (!Array.isArray(formats)) return {};
+  // Prefer mp4 with direct url
+  const mp4Candidate = formats.find((f) => (f.ext === 'mp4' || (f.vcodec && f.ext)) && f.url);
+  // HLS / m3u8 candidates
+  const hlsCandidate =
+    formats.find((f) => (f.ext === 'm3u8' || (f.protocol && f.protocol.includes('m3u8')) || (f.format && /hls/i.test(f.format))) && f.url) ||
+    formats.find((f) => (f.manifest_url && /m3u8/i.test(f.manifest_url)));
+  return {
+    mp4Url: mp4Candidate?.url || null,
+    hlsUrl: hlsCandidate?.url || hlsCandidate?.manifest_url || null,
+  };
+}
+
+async function buildPlaybackMetaFromInfo(info, sourceUrl) {
+  const id = info?.id || null;
+  const cacheKey = id || sourceUrl;
+  const now = Date.now();
+  const cached = playbackCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    return { ...cached.data, diagnostics: { ...(cached.data?.diagnostics || {}), cache_hit: true } };
+  }
+
+  let playable_url = null;
+  let hls_url = null;
+  let poster_url = null;
+  let strategy = 'yt-dlp';
+  let fallback_embed = id ? `https://www.tiktok.com/embed/v2/${id}` : null;
+
+  // Poster
+  poster_url = info?.thumbnail || (Array.isArray(info?.thumbnails) ? info.thumbnails[0]?.url : null) || null;
+
+  // From formats
+  const { mp4Url, hlsUrl } = selectPlayableFromFormats(info?.formats || []);
+
+  // Validate mp4 direct url if present
+  if (mp4Url && (await validateMp4Url(mp4Url))) {
+    playable_url = mp4Url;
+  } else if (hlsUrl) {
+    hls_url = hlsUrl;
+  }
+
+  // Cache policy
+  const success = playable_url || hls_url;
+  const data = {
+    tiktok_id: id,
+    playable_url: playable_url || null,
+    hls_url: hls_url || null,
+    poster_url,
+    fallback_embed,
+    expires_at: new Date(now + SUCCESS_TTL_MS).toISOString(),
+    diagnostics: { strategy, cache_hit: false },
+  };
+
+  playbackCache.set(cacheKey, {
+    data,
+    expiresAt: now + (success ? SUCCESS_TTL_MS : FAIL_TTL_MS),
+    failCount: success ? 0 : (cached?.failCount || 0) + 1,
+  });
+
+  return data;
+}
+
+async function getPlaybackMetaWithLock(info, sourceUrl) {
+  const id = info?.id || null;
+  const key = id || sourceUrl;
+  if (!key) return buildPlaybackMetaFromInfo(info, sourceUrl);
+  if (playbackLocks.has(key)) {
+    return playbackLocks.get(key);
+  }
+  const p = buildPlaybackMetaFromInfo(info, sourceUrl)
+    .catch((e) => {
+      return {
+        tiktok_id: id,
+        playable_url: null,
+        hls_url: null,
+        poster_url: info?.thumbnail || null,
+        fallback_embed: id ? `https://www.tiktok.com/embed/v2/${id}` : null,
+        expires_at: new Date(Date.now() + FAIL_TTL_MS).toISOString(),
+        diagnostics: { strategy: 'yt-dlp', cache_hit: false, error: String(e) },
+      };
+    })
+    .finally(() => {
+      playbackLocks.delete(key);
+    });
+  playbackLocks.set(key, p);
+  return p;
+}
 
 // TikTok Shop 专业分析 Prompt（v2.1 - 灵活时间线版）
 const getTikTokShopPrompt = () => `STRICTLY RETURN JSON ONLY — no Markdown code fences, no prose, no explanations.
@@ -627,27 +745,92 @@ exports.analyzeUrl = async (req, res) => {
       return res.status(413).json({ ok: false, code: 'TOO_LARGE', limit: MAX_BYTES, est });
     }
 
-    // 2) 下载到临时文件
-    const tmpName = `tiktok-${Date.now()}-${crypto.randomBytes(6).toString('hex')}.mp4`;
-    const tmpFile = path.join(os.tmpdir(), tmpName);
-    await ytdlp(url, {
-      ...(candidate?.format_id ? { format: candidate.format_id } : {}),
-      output: tmpFile,
-      noWarnings: true,
-      noCheckCertificates: true,
-      referer: 'https://www.tiktok.com/'
-    });
+    // 2) 使用视频缓存管理器下载并获取自托管URL
+    console.log('[analyze_url] Starting video cache download for:', url);
+    const cacheResult = await getOrDownloadVideo(url);
+    
+    let playbackMeta;
+    let videoFilePath;
+    
+    if (cacheResult.success) {
+      // 成功获取/下载视频
+      playbackMeta = {
+        tiktok_id: cacheResult.tiktokId,
+        playable_url: `http://localhost:5001${cacheResult.playableUrl}`, // 完整URL
+        hls_url: null, // 暂不支持HLS
+        poster_url: null,
+        fallback_embed: cacheResult.tiktokId ? `https://www.tiktok.com/embed/v2/${cacheResult.tiktokId}` : null,
+        expires_at: cacheResult.expiresAt,
+        diagnostics: {
+          strategy: 'self-hosted',
+          cache_hit: cacheResult.cacheHit,
+          storage: cacheResult.storage
+        }
+      };
+      
+      // 使用缓存的文件路径
+      const { getCacheFilePath } = require('../utils/videoCacheManager');
+      videoFilePath = getCacheFilePath(cacheResult.tokenId);
+      
+      console.log('[analyze_url] Video cache result:', {
+        tokenId: cacheResult.tokenId,
+        cacheHit: cacheResult.cacheHit,
+        playableUrl: playbackMeta.playable_url
+      });
+    } else {
+      // 下载失败，使用降级方案
+      console.error('[analyze_url] Video cache failed:', cacheResult.error);
+      
+      // 回退到原始的playbackMeta逻辑
+      playbackMeta = await getPlaybackMetaWithLock(info, url);
+      
+      // 如果也没有playbackMeta，至少提供fallback embed
+      if (!playbackMeta || (!playbackMeta.playable_url && !playbackMeta.hls_url)) {
+        const tiktokId = cacheResult.tiktokId || info?.id;
+        playbackMeta = {
+          tiktok_id: tiktokId,
+          playable_url: null,
+          hls_url: null,
+          poster_url: null,
+          fallback_embed: tiktokId ? `https://www.tiktok.com/embed/v2/${tiktokId}` : null,
+          expires_at: null,
+          diagnostics: {
+            strategy: 'fallback',
+            cache_hit: false,
+            error: cacheResult.error
+          }
+        };
+      }
+      
+      // 仍需要下载视频进行分析
+      const tmpName = `tiktok-${Date.now()}-${crypto.randomBytes(6).toString('hex')}.mp4`;
+      const tmpFile = path.join(os.tmpdir(), tmpName);
+      await ytdlp(url, {
+        ...(candidate?.format_id ? { format: candidate.format_id } : {}),
+        output: tmpFile,
+        noWarnings: true,
+        noCheckCertificates: true,
+        referer: 'https://www.tiktok.com/'
+      });
+      videoFilePath = tmpFile;
+    }
 
     // 3) 真实大小校验
-    const stat = fs.statSync(tmpFile);
+    const stat = fs.statSync(videoFilePath);
     if (stat.size > MAX_BYTES) {
-      try { fs.unlinkSync(tmpFile); } catch {}
+      // 如果是临时文件，删除它
+      if (videoFilePath.includes(os.tmpdir())) {
+        try { fs.unlinkSync(videoFilePath); } catch {}
+      }
       return res.status(413).json({ ok: false, code: 'TOO_LARGE', limit: MAX_BYTES, actual: stat.size });
     }
 
     // 4) 读入内存并调用与上传一致的分析逻辑（复用当前实现）
-    const buffer = fs.readFileSync(tmpFile);
-    try { fs.unlinkSync(tmpFile); } catch {}
+    const buffer = fs.readFileSync(videoFilePath);
+    // 如果是临时文件，删除它
+    if (videoFilePath.includes(os.tmpdir())) {
+      try { fs.unlinkSync(videoFilePath); } catch {}
+    }
 
     // 以下逻辑直接复用 uploadVideo 的实现，确保返回结构一致
     // 初始化Gemini模型
@@ -763,7 +946,7 @@ exports.analyzeUrl = async (req, res) => {
         parsed_data: parsedData,
         validation_status: validationStatus,
         metadata: {
-          filename: tmpName,
+          filename: path.basename(videoFilePath),
           filesize: stat.size,
           mimetype: 'video/mp4',
           analysis_time: analysisTime,
@@ -785,6 +968,13 @@ exports.analyzeUrl = async (req, res) => {
         platform: 'tiktok',
         durationSec: info?.duration,
         filesize: stat.size,
+        tiktok_id: playbackMeta.tiktok_id || info?.id || null,
+        playable_url: playbackMeta.playable_url || null,
+        hls_url: playbackMeta.hls_url || null,
+        poster_url: playbackMeta.poster_url || null,
+        fallback_embed: playbackMeta.fallback_embed || null,
+        expires_at: playbackMeta.expires_at || null,
+        diagnostics: playbackMeta.diagnostics || { strategy: 'yt-dlp', cache_hit: false }
       },
       ...response,
     });

@@ -27,10 +27,14 @@ app.use(express.json({ limit: '50mb' }));
 
 // Video analysis controller
 const videoController = require('./controllers/videoController');
+const mediaController = require('./controllers/mediaController');
 
 // Routes
 app.post('/api/videos/upload', upload.single('video'), videoController.uploadVideo);
 app.post('/api/videos/analyze_url', videoController.analyzeUrl);
+
+// Media streaming route with Range support
+app.get('/media/:id', mediaController.streamVideo);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -1,22 +1,25 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useCallback, useMemo } from 'react';
-import { Toaster, toast } from 'sonner';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+// quiet copy feedback (no toast)
 import { splitIntoParagraphs } from '@/lib/text';
+import { useCallback, useMemo, useState } from 'react';
 
 export default function SummaryTab({ summary }: { summary?: string }) {
   const paragraphs = useMemo(() => splitIntoParagraphs(summary ?? '', 3), [summary]);
   const textBlock = useMemo(() => (paragraphs.length ? paragraphs.join('\n\n') : ''), [paragraphs]);
+  const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(async () => {
     try {
       if (!textBlock) return;
       await navigator.clipboard.writeText(textBlock);
-      toast.success('Summary copied to clipboard', { duration: 1500 });
+      setCopied(true);
+      // Reset after 2 seconds
+      setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error('Copy failed — clipboard permission denied?', { duration: 1500 });
+      // silent failure
     }
   }, [textBlock]);
 
@@ -37,8 +40,15 @@ export default function SummaryTab({ summary }: { summary?: string }) {
     <Card data-improvement-summary>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Improvement Summary</CardTitle>
-        <Button variant="secondary" size="sm" onClick={handleCopy}>
-          Copy
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={handleCopy}
+          disabled={!textBlock || copied}
+          aria-disabled={!textBlock}
+          aria-live="polite"
+        >
+          {copied ? '✓ Copied' : 'Copy'}
         </Button>
       </CardHeader>
       <CardContent>
@@ -48,8 +58,7 @@ export default function SummaryTab({ summary }: { summary?: string }) {
           ))}
         </div>
       </CardContent>
-      {/* Local toaster to ensure feedback is visible without global setup */}
-      <Toaster richColors position="top-right" />
+      {/* quiet mode: no global/local toasts */}
     </Card>
   );
 }

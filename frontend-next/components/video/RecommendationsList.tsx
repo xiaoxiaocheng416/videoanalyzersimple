@@ -1,12 +1,18 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Copy, CheckCircle, TrendingUp, Clock, AlertCircle, Lightbulb } from 'lucide-react';
-import { Recommendation } from '@/lib/validation';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { Recommendation } from '@/lib/validation';
+import { AlertCircle, CheckCircle, Clock, Copy, Lightbulb, TrendingUp } from 'lucide-react';
+import type React from 'react';
+import { useMemo, useState } from 'react';
 
 // local types: some recommendations may include oral "examples"
 type OralExample = string | { text?: string; content?: string };
@@ -14,7 +20,7 @@ type WithExamples = { examples?: OralExample[] };
 
 // ---- priority types & helpers ----
 export const PRIORITIES = ['Critical', 'High', 'Medium', 'Low'] as const;
-export type Priority = typeof PRIORITIES[number];
+export type Priority = (typeof PRIORITIES)[number];
 
 export const priorityColors: Record<Priority, string> = {
   Critical: 'bg-red-100 text-red-700',
@@ -36,29 +42,30 @@ interface RecommendationsListProps {
 }
 
 // 局部补充类型（保留 WithExamples）
-type RecommendationItem = Recommendation & WithExamples & {
-  calculatedPriority?: unknown; // 后端可能返回任意，需要本地校验
-  impact?: string | number; // 可选 impact（字符串或数字）
-  effort?: string | number; // 可选 effort，修复 TS 报错
-  difficulty?: string; // 可选难度描述
-  expected_lift?: string | number; // 可选预期提升
-  problem?: string; // 可选问题描述
-  solution?: string; // 可选解决方案
-};
+type RecommendationItem = Recommendation &
+  WithExamples & {
+    calculatedPriority?: unknown; // 后端可能返回任意，需要本地校验
+    impact?: string | number; // 可选 impact（字符串或数字）
+    effort?: string | number; // 可选 effort，修复 TS 报错
+    difficulty?: string; // 可选难度描述
+    expected_lift?: string | number; // 可选预期提升
+    problem?: string; // 可选问题描述
+    solution?: string; // 可选解决方案
+  };
 
 // 前端派生优先级计算
 const calculatePriority = (rec: any): Priority => {
-  const impact = parseFloat(rec.expected_lift || rec.impact || '0');
+  const impact = Number.parseFloat(rec.expected_lift || rec.impact || '0');
   const effortMap: Record<string, number> = {
     simple: 1,
     medium: 2,
     reshoot: 3,
     low: 1,
-    high: 3
+    high: 3,
   };
   const effort = effortMap[rec.difficulty || rec.effort || 'medium'] || 2;
 
-  const score = (0.7 * impact) + (0.3 * (1/effort));
+  const score = 0.7 * impact + 0.3 * (1 / effort);
 
   if (score > 0.7) return 'Critical';
   if (score > 0.5) return 'High';
@@ -68,21 +75,21 @@ const calculatePriority = (rec: any): Priority => {
 
 export const RecommendationsList: React.FC<RecommendationsListProps> = ({
   recommendations,
-  topOpportunities
+  topOpportunities,
 }) => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // 添加派生优先级并排序
   const sortedRecommendations = useMemo(() => {
-    const withPriority = recommendations.map(rec => ({
+    const withPriority = recommendations.map((rec) => ({
       ...rec,
-      calculatedPriority: isPriority(rec.priority) ? rec.priority : calculatePriority(rec)
+      calculatedPriority: isPriority(rec.priority) ? rec.priority : calculatePriority(rec),
     }));
 
     // 按优先级排序
     const priorityOrder: Record<Priority, number> = { Critical: 0, High: 1, Medium: 2, Low: 3 };
-    return withPriority.sort((a, b) =>
-      priorityOrder[a.calculatedPriority] - priorityOrder[b.calculatedPriority]
+    return withPriority.sort(
+      (a, b) => priorityOrder[a.calculatedPriority] - priorityOrder[b.calculatedPriority],
     );
   }, [recommendations]);
 
@@ -157,18 +164,21 @@ export const RecommendationsList: React.FC<RecommendationsListProps> = ({
                 </ul>
               </div>
             )}
-            {topOpportunities.technical_optimizations && topOpportunities.technical_optimizations.length > 0 && (
-              <div>
-                <span className="text-xs font-semibold text-blue-600">Technical Optimizations:</span>
-                <ul className="text-sm mt-1 space-y-1">
-                  {topOpportunities.technical_optimizations.map((opt, i) => (
-                    <li key={i} className="flex items-center gap-1">
-                      <span className="text-blue-500">•</span> {opt}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            {topOpportunities.technical_optimizations &&
+              topOpportunities.technical_optimizations.length > 0 && (
+                <div>
+                  <span className="text-xs font-semibold text-blue-600">
+                    Technical Optimizations:
+                  </span>
+                  <ul className="text-sm mt-1 space-y-1">
+                    {topOpportunities.technical_optimizations.map((opt, i) => (
+                      <li key={i} className="flex items-center gap-1">
+                        <span className="text-blue-500">•</span> {opt}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
           </div>
         )}
 
@@ -180,7 +190,9 @@ export const RecommendationsList: React.FC<RecommendationsListProps> = ({
               const rawOral = (rec as WithExamples).examples ?? [];
               const oralExamples = Array.isArray(rawOral)
                 ? rawOral
-                    .map(item => (typeof item === 'string' ? item : (item?.text ?? item?.content ?? '')))
+                    .map((item) =>
+                      typeof item === 'string' ? item : (item?.text ?? item?.content ?? ''),
+                    )
                     .filter(Boolean)
                 : [];
 
@@ -190,9 +202,15 @@ export const RecommendationsList: React.FC<RecommendationsListProps> = ({
               if (recWithExamples.examples?.text) {
                 if (typeof recWithExamples.examples.text === 'string') {
                   textContent = recWithExamples.examples.text;
-                } else if (typeof recWithExamples.examples.text === 'object' && recWithExamples.examples.text !== null) {
+                } else if (
+                  typeof recWithExamples.examples.text === 'object' &&
+                  recWithExamples.examples.text !== null
+                ) {
                   // 处理 {text: "...", source: "..."} 结构
-                  textContent = recWithExamples.examples.text.text || recWithExamples.examples.text.content || '';
+                  textContent =
+                    recWithExamples.examples.text.text ||
+                    recWithExamples.examples.text.content ||
+                    '';
                 }
               }
 
@@ -212,11 +230,7 @@ export const RecommendationsList: React.FC<RecommendationsListProps> = ({
                     <div className="flex items-start justify-between w-full pr-4">
                       <div className="flex-1 space-y-2">
                         <div className="flex items-center gap-2">
-                          <Badge
-                            className={`${priorityColor}`}
-                          >
-                            {priority}
-                          </Badge>
+                          <Badge className={`${priorityColor}`}>{priority}</Badge>
 
                           {impact !== undefined && impact !== null && impact !== '' && (
                             <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -274,7 +288,9 @@ export const RecommendationsList: React.FC<RecommendationsListProps> = ({
                     {/* Examples - 口播 */}
                     {oralExamples.length > 0 && (
                       <div className="space-y-2">
-                        <span className="text-xs font-semibold text-muted-foreground">Oral Examples:</span>
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          Oral Examples:
+                        </span>
                         {oralExamples.map((oral, oralIdx) => (
                           <div key={oralIdx}>
                             {renderCopyableText(oral, `Oral ${oralIdx + 1}`, index, oralIdx)}
@@ -286,7 +302,9 @@ export const RecommendationsList: React.FC<RecommendationsListProps> = ({
                     {/* Examples - 屏幕字 */}
                     {textContent && (
                       <div>
-                        <span className="text-xs font-semibold text-muted-foreground">Screen Text Example:</span>
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          Screen Text Example:
+                        </span>
                         {renderCopyableText(textContent, 'Screen Text', index, 99)}
                       </div>
                     )}
