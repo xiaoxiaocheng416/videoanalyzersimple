@@ -754,9 +754,10 @@ exports.analyzeUrl = async (req, res) => {
     
     if (cacheResult.success) {
       // 成功获取/下载视频
-      // 动态获取API基址，支持生产环境配置
-      const publicApiOrigin = process.env.PUBLIC_API_ORIGIN || 
-                              `${req.protocol}://${req.get('host')}`;
+      // 动态获取API基址，支持生产环境配置与代理头
+      const xfProto = (req.headers['x-forwarded-proto'] || req.protocol || '').toString().split(',')[0];
+      const xfHost = (req.headers['x-forwarded-host'] || req.get('host') || '').toString().split(',')[0];
+      const publicApiOrigin = process.env.PUBLIC_API_ORIGIN || `${xfProto}://${xfHost}`;
       const playableUrl = new URL(cacheResult.playableUrl, publicApiOrigin).toString();
       
       playbackMeta = {

@@ -4,6 +4,8 @@ const multer = require('multer');
 require('dotenv').config();
 
 const app = express();
+// Honor X-Forwarded-* headers from reverse proxies (Render, etc.)
+app.set('trust proxy', true);
 const upload = multer({ 
   storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
