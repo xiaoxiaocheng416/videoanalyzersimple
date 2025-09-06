@@ -81,6 +81,46 @@ export default function HomePage() {
     reset();
   };
 
+  // ---- Minimal URL analyze entry (no style structure changes) ----
+  const [linkUrl, setLinkUrl] = useState('');
+  const [linkError, setLinkError] = useState<string | null>(null);
+  // API base for direct calls (env override, fallback to /api)
+  const API_BASE = (process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, '') || '/api');
+
+  const handleAnalyzeUrl = async () => {
+    setLinkError(null);
+    const url = linkUrl.trim();
+    if (!url) {
+      setLinkError('请输入有效的 TikTok 链接');
+      return;
+    }
+    try {
+      setStage('uploading');
+      setProgress(0);
+      setCurrentAnalysisStep('analyzing');
+      simulateAnalysisProgress();
+
+      const resp = await fetch(`${API_BASE}/videos/analyze_url`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      const raw = await resp.json();
+      if (!resp.ok) {
+        throw new Error(raw?.message || raw?.code || 'Analyze failed');
+      }
+
+      const formatted = VideoAnalyzerAPI.formatAnalysisResults(
+        raw.analysisResult ? raw : { analysisResult: raw.analysis },
+      );
+      setResults(formatted);
+      setStage('complete');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '链接分析失败');
+      setStage('error');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white">
       <div className="container mx-auto px-4 py-12 max-w-2xl">
@@ -104,12 +144,32 @@ export default function HomePage() {
         {stage === 'idle' && (
           <div className="w-full">
             <Card className="relative overflow-hidden backdrop-blur-xl bg-gradient-to-br from-white/80 to-white/60 dark:from-gray-900/80 dark:to-gray-900/60 border border-white/20 shadow-2xl">
-              <div className="p-6">
+              <div className="p-6 space-y-4">
                 <VideoUploader
                   onFileSelect={handleFileSelect}
                   onRemove={handleRemoveFile}
                   isUploading={false}
                 />
+
+                {/* Link analyze input (minimal add, no layout changes) */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="url"
+                    value={linkUrl}
+                    onChange={(e) => setLinkUrl(e.target.value)}
+                    placeholder="粘贴 TikTok 视频链接"
+                    className="flex-1 px-3 py-2 rounded-md border bg-white text-sm"
+                  />
+                  <button
+                    onClick={handleAnalyzeUrl}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:bg-primary/90"
+                  >
+                    分析链接
+                  </button>
+                </div>
+                {linkError && (
+                  <p className="text-xs text-red-600">{linkError}</p>
+                )}
               </div>
             </Card>
           </div>

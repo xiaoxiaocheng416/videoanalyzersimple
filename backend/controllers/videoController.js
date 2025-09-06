@@ -1,8 +1,10 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const crypto = require('crypto');
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+let ytdlp;
 
 // TikTok Shop 专业分析 Prompt（v2.1 - 灵活时间线版）
 const getTikTokShopPrompt = () => `STRICTLY RETURN JSON ONLY — no Markdown code fences, no prose, no explanations.
@@ -577,3 +579,219 @@ function inferPhaseFromSegment(segment) {
   if (segment.includes('25-30') || segment.includes('25–30')) return 'cta';
   return 'hook'; // 默认值
 }
+
+// 新增：通过URL下载TikTok视频并分析
+// 约束：仅允许 tiktok.com/vt.tiktok.com 域名，大小 ≤ 50MB
+exports.analyzeUrl = async (req, res) => {
+  const MAX_BYTES = 50 * 1024 * 1024;
+  const ALLOWED_HOSTS = ['tiktok.com', 'www.tiktok.com', 'm.tiktok.com', 'vt.tiktok.com'];
+  const startTime = Date.now();
+
+  try {
+    const { url } = req.body || {};
+    if (!url || typeof url !== 'string') {
+      return res.status(400).json({ ok: false, code: 'INVALID_URL', message: 'Missing or invalid url' });
+    }
+    let host;
+    try {
+      host = new URL(url).hostname;
+    } catch (e) {
+      return res.status(400).json({ ok: false, code: 'INVALID_URL', message: 'URL parse failed' });
+    }
+    if (!ALLOWED_HOSTS.some((h) => host === h || host.endsWith('.' + h))) {
+      return res.status(415).json({ ok: false, code: 'UNSUPPORTED_HOST', host });
+    }
+
+    // 延迟加载yt-dlp-exec，避免在未安装环境下require时报错
+    if (!ytdlp) {
+      try {
+        ytdlp = require('yt-dlp-exec');
+      } catch (e) {
+        return res.status(500).json({ ok: false, code: 'DEPENDENCY_MISSING', message: 'yt-dlp-exec not installed' });
+      }
+    }
+
+    // 1) 先获取元信息估算大小/格式
+    const info = await ytdlp(url, {
+      dumpSingleJson: true,
+      noWarnings: true,
+      noCheckCertificates: true,
+      referer: 'https://www.tiktok.com/'
+    });
+
+    const formats = Array.isArray(info?.formats) ? info.formats : [];
+    const mp4 = formats.find((f) => f.ext === 'mp4' && (f.filesize || f.filesize_approx));
+    const candidate = mp4 || formats.find((f) => f.filesize || f.filesize_approx) || null;
+    const est = candidate?.filesize || candidate?.filesize_approx || info?.filesize || info?.filesize_approx;
+    if (est && est > MAX_BYTES) {
+      return res.status(413).json({ ok: false, code: 'TOO_LARGE', limit: MAX_BYTES, est });
+    }
+
+    // 2) 下载到临时文件
+    const tmpName = `tiktok-${Date.now()}-${crypto.randomBytes(6).toString('hex')}.mp4`;
+    const tmpFile = path.join(os.tmpdir(), tmpName);
+    await ytdlp(url, {
+      ...(candidate?.format_id ? { format: candidate.format_id } : {}),
+      output: tmpFile,
+      noWarnings: true,
+      noCheckCertificates: true,
+      referer: 'https://www.tiktok.com/'
+    });
+
+    // 3) 真实大小校验
+    const stat = fs.statSync(tmpFile);
+    if (stat.size > MAX_BYTES) {
+      try { fs.unlinkSync(tmpFile); } catch {}
+      return res.status(413).json({ ok: false, code: 'TOO_LARGE', limit: MAX_BYTES, actual: stat.size });
+    }
+
+    // 4) 读入内存并调用与上传一致的分析逻辑（复用当前实现）
+    const buffer = fs.readFileSync(tmpFile);
+    try { fs.unlinkSync(tmpFile); } catch {}
+
+    // 以下逻辑直接复用 uploadVideo 的实现，确保返回结构一致
+    // 初始化Gemini模型
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-pro",
+      generationConfig: {
+        temperature: 0.4,
+        topP: 0.95,
+        topK: 40,
+        maxOutputTokens: 8192,
+        responseMimeType: "application/json",
+      },
+    });
+
+    const base64Video = buffer.toString('base64');
+    const prompt = getTikTokShopPrompt();
+    const promptHash = crypto.createHash('sha256').update(prompt).digest('hex').slice(0, 12);
+    console.log(`[URL分析] 开始，host=${host}, size=${(stat.size/1024/1024).toFixed(2)}MB`);
+    console.log(`[PROMPT] v2.1 hash=${promptHash} len=${prompt.length}`);
+    console.log('[Gemini API] 正在发送请求...');
+
+    const result = await model.generateContent([
+      { text: prompt },
+      {
+        inlineData: {
+          mimeType: 'video/mp4',
+          data: base64Video,
+        },
+      },
+    ]);
+
+    if (!result || !result.response) {
+      throw new Error('Gemini API返回空响应');
+    }
+
+    const rawText = result.response.text();
+    console.log('[Gemini API] 收到响应，长度:', rawText.length, '字符');
+
+    // 尝试解析JSON响应（与上传一致）
+    let parsedData = null;
+    let validationStatus = {
+      is_valid_json: false,
+      is_complete_structure: false,
+      missing_fields: [],
+      has_actual_scores: false,
+    };
+
+    try {
+      const cleanedText = rawText
+        .replace(/^```json\s*/i, '')
+        .replace(/\s*```$/i, '')
+        .trim();
+      parsedData = JSON.parse(cleanedText);
+      validationStatus.is_valid_json = true;
+
+      const requiredFields = ['overview', 'pillars', 'timeline', 'recommendations', 'forecast'];
+      const missingFields = requiredFields.filter(field => !parsedData[field]);
+      validationStatus.missing_fields = missingFields;
+      validationStatus.is_complete_structure = missingFields.length === 0;
+
+      if (parsedData.pillars) {
+        const hasNonZeroScores = Object.values(parsedData.pillars).some(score => score > 0);
+        validationStatus.has_actual_scores = hasNonZeroScores;
+      }
+
+      if (parsedData.timeline && Array.isArray(parsedData.timeline)) {
+        parsedData.timeline = parsedData.timeline.map(segment => {
+          let t_start = parseInt(segment.t_start) || 0;
+          let t_end = parseInt(segment.t_end) || t_start + 3;
+          if (t_start > t_end) { [t_start, t_end] = [t_end, t_start]; }
+          t_start = Math.max(0, Math.min(300, t_start));
+          t_end = Math.max(t_start, Math.min(300, t_end));
+          return {
+            ...segment,
+            t_start,
+            t_end,
+            phase: segment.phase || inferPhaseFromSegment(segment.segment),
+            severity: ['none', 'minor', 'major', 'critical'].includes(segment.severity) ? segment.severity : 'none'
+          };
+        });
+      }
+
+      if (parsedData.data_quality) {
+        const completeness = parsedData.data_quality.completeness || 0.8;
+        if (completeness < 0.5) {
+          parsedData.data_quality.widen_factor = 5;
+          if (!parsedData.data_quality.notes.includes('widened ×5')) {
+            parsedData.data_quality.notes.push('Forecast ranges widened ×5 due to low data completeness');
+          }
+        } else if (completeness < 0.8) {
+          parsedData.data_quality.widen_factor = 2;
+          if (!parsedData.data_quality.notes.includes('widened ×2')) {
+            parsedData.data_quality.notes.push('Forecast ranges widened ×2 due to partial data completeness');
+          }
+        } else {
+          parsedData.data_quality.widen_factor = 1;
+        }
+      }
+
+      console.log(`[ANALYZER] recs=${parsedData?.recommendations?.length}, timeline=${parsedData?.timeline?.length}`);
+      console.log('[JSON解析] 成功，包含所有必需字段');
+    } catch (parseError) {
+      console.error('[JSON解析] 失败:', parseError.message);
+      console.log('[原始响应]', rawText.substring(0, 500));
+    }
+
+    const analysisTime = Date.now() - startTime;
+    const response = {
+      success: true,
+      analysisResult: {
+        full_analysis: rawText,
+        raw_response: rawText,
+        parsed_data: parsedData,
+        validation_status: validationStatus,
+        metadata: {
+          filename: tmpName,
+          filesize: stat.size,
+          mimetype: 'video/mp4',
+          analysis_time: analysisTime,
+          timestamp: new Date().toISOString(),
+        },
+        controller_meta: {
+          prompt_version: 'v2.1',
+          prompt_hash: typeof promptHash !== 'undefined' ? promptHash : null,
+          recs_len: parsedData && Array.isArray(parsedData.recommendations) ? parsedData.recommendations.length : null,
+        }
+      },
+    };
+
+    // 同时附加ok/source/meta（不破坏前端兼容）
+    res.json({
+      ok: true,
+      source: 'url',
+      meta: {
+        platform: 'tiktok',
+        durationSec: info?.duration,
+        filesize: stat.size,
+      },
+      ...response,
+    });
+  } catch (err) {
+    console.error('analyze_url error', err);
+    const code = /timed out|Timeout/i.test(String(err)) ? 'UPSTREAM_TIMEOUT' : 'DOWNLOAD_FAILED';
+    const status = code === 'UPSTREAM_TIMEOUT' ? 504 : 422;
+    res.status(status).json({ ok: false, code, message: err?.message || String(err) });
+  }
+};

@@ -30,6 +30,7 @@ const videoController = require('./controllers/videoController');
 
 // Routes
 app.post('/api/videos/upload', upload.single('video'), videoController.uploadVideo);
+app.post('/api/videos/analyze_url', videoController.analyzeUrl);
 
 // Health check
 app.get('/api/health', (req, res) => {
