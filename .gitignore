@@ -1,4 +1,5 @@
 backend/.env
+backend/.env.production
 **/node_modules
 *.pid
 *.out
