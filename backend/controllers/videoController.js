@@ -754,9 +754,14 @@ exports.analyzeUrl = async (req, res) => {
     
     if (cacheResult.success) {
       // 成功获取/下载视频
+      // 动态获取API基址，支持生产环境配置
+      const publicApiOrigin = process.env.PUBLIC_API_ORIGIN || 
+                              `${req.protocol}://${req.get('host')}`;
+      const playableUrl = new URL(cacheResult.playableUrl, publicApiOrigin).toString();
+      
       playbackMeta = {
         tiktok_id: cacheResult.tiktokId,
-        playable_url: `http://localhost:5001${cacheResult.playableUrl}`, // 完整URL
+        playable_url: playableUrl, // 使用动态生成的完整URL
         hls_url: null, // 暂不支持HLS
         poster_url: null,
         fallback_embed: cacheResult.tiktokId ? `https://www.tiktok.com/embed/v2/${cacheResult.tiktokId}` : null,
