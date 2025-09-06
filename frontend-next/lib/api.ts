@@ -4,6 +4,58 @@ import { parseAnalysisResult } from './validation';
 // API base: env override, fallback to /api (for proxy)
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, '') || '/api';
 
+// Retry configuration
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second
+
+// Warm-up function to wake up cold-start servers
+export async function warmUpServer(): Promise<void> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout for warmup
+    
+    const response = await fetch(`${API_BASE}/ping`, {
+      method: 'GET',
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (response.ok) {
+      console.log('[API] Server warmed up successfully');
+    }
+  } catch (error) {
+    console.log('[API] Warm-up failed (server might be cold starting):', error);
+  }
+}
+
+// Retry fetch with exponential backoff
+export async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  retries = MAX_RETRIES
+): Promise<Response> {
+  try {
+    const response = await fetch(url, options);
+    
+    // If we get 502/503 (server not ready), retry
+    if ((response.status === 502 || response.status === 503) && retries > 0) {
+      console.log(`[API] Got ${response.status}, retrying... (${retries} retries left)`);
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * (MAX_RETRIES - retries + 1)));
+      return fetchWithRetry(url, options, retries - 1);
+    }
+    
+    return response;
+  } catch (error) {
+    if (retries > 0) {
+      console.log(`[API] Network error, retrying... (${retries} retries left)`);
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * (MAX_RETRIES - retries + 1)));
+      return fetchWithRetry(url, options, retries - 1);
+    }
+    throw error;
+  }
+}
+
 // 完整性检查 - 确保数据不是全默认值
 function hasRealData(data: any): boolean {
   if (!data) return false;

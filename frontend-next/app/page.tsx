@@ -6,7 +6,7 @@ import { AnalysisProgress } from '@/components/video/AnalysisProgress';
 import { ResultsDisplay } from '@/components/video/ResultsDisplay';
 import VideoPane from '@/components/video/VideoPane';
 import { VideoUploader } from '@/components/video/VideoUploader';
-import { VideoAnalyzerAPI } from '@/lib/api';
+import { VideoAnalyzerAPI, warmUpServer, fetchWithRetry } from '@/lib/api';
 import { useVideoAnalyzer } from '@/lib/store';
 import { clearAllSummaryDrafts } from '../utils/summaryDraft';
 import { AlertCircle } from 'lucide-react';
@@ -148,7 +148,10 @@ export default function HomePage() {
       setCurrentAnalysisStep('analyzing');
       simulateAnalysisProgress();
 
-      const resp = await fetch(`${API_BASE}/videos/analyze_url`, {
+      // Warm up server before making the actual request (for production cold starts)
+      await warmUpServer();
+
+      const resp = await fetchWithRetry(`${API_BASE}/videos/analyze_url`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url }),

@@ -38,9 +38,14 @@ app.post('/api/videos/analyze_url', videoController.analyzeUrl);
 // Media streaming route with Range support
 app.get('/media/:id', mediaController.streamVideo);
 
-// Health check
+// Health check for platform monitoring (Render, etc.)
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: '视频分析服务运行中' });
+  res.status(200).send('ok');
+});
+
+// Ping endpoint for warm-up
+app.get('/api/ping', (req, res) => {
+  res.json({ ok: true, ts: Date.now() });
 });
 
 // Error handling middleware
@@ -56,4 +61,13 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 服务器运行在端口 ${PORT}`);
   console.log(`📡 API 地址: http://localhost:${PORT}/api`);
+  
+  // 生产环境日志
+  if (process.env.NODE_ENV === 'production') {
+    console.log('🌐 生产环境配置:');
+    console.log(`  - PUBLIC_API_ORIGIN: ${process.env.PUBLIC_API_ORIGIN || '未设置（将使用动态检测）'}`);
+    console.log(`  - 视频缓存目录: ${process.env.VIDEO_CACHE_DIR || '/var/tmp/video-cache'}`);
+    console.log(`  - Trust Proxy: 已启用`);
+    console.log(`  - CORS 允许域名: ${['http://localhost:3005', 'http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'https://videoanalyzer.netlify.app'].join(', ')}`);
+  }
 });
