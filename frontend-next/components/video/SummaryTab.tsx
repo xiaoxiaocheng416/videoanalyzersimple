@@ -4,21 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useCallback, useMemo } from 'react';
 import { Toaster, toast } from 'sonner';
+import { splitIntoParagraphs } from '@/lib/text';
 
 export default function SummaryTab({ summary }: { summary?: string }) {
-  const sentences = useMemo(() => {
-    if (!summary || typeof summary !== 'string') return [] as string[];
-    return summary
-      .split(/[.!?。！？]\s*/g)
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .slice(0, 12);
-  }, [summary]);
-
-  const textBlock = useMemo(
-    () => (sentences.length ? sentences.join('. ') + '.' : ''),
-    [sentences]
-  );
+  const paragraphs = useMemo(() => splitIntoParagraphs(summary ?? '', 3), [summary]);
+  const textBlock = useMemo(() => (paragraphs.length ? paragraphs.join('\n\n') : ''), [paragraphs]);
 
   const handleCopy = useCallback(async () => {
     try {
@@ -30,7 +20,7 @@ export default function SummaryTab({ summary }: { summary?: string }) {
     }
   }, [textBlock]);
 
-  if (!sentences.length) {
+  if (!paragraphs.length) {
     return (
       <Card>
         <CardHeader>
@@ -52,13 +42,11 @@ export default function SummaryTab({ summary }: { summary?: string }) {
         </Button>
       </CardHeader>
       <CardContent>
-        <ul className="list-disc pl-5 space-y-1">
-          {sentences.map((s, i) => (
-            <li key={i} className="text-sm leading-relaxed">
-              {s}
-            </li>
+        <div className="space-y-3 leading-7 text-slate-700">
+          {paragraphs.map((p, i) => (
+            <p key={i}>{p}</p>
           ))}
-        </ul>
+        </div>
       </CardContent>
       {/* Local toaster to ensure feedback is visible without global setup */}
       <Toaster richColors position="top-right" />

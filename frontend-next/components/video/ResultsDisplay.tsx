@@ -16,6 +16,7 @@ import { RecommendationsList } from './RecommendationsList';
 import { FlagsPills } from './FlagsPills';
 import SummaryTab from './SummaryTab';
 import { AnalysisResult } from '@/lib/validation';
+import NarrativeDetails from '@/components/video/NarrativeDetails';
 
 // ---- local types for data quality ----
 type DataQualityObj = {
@@ -255,7 +256,10 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
                   {results.rawResponse && (
                     <AccordionItem value="ai-response">
                       <AccordionTrigger className="font-medium">
-                        🤖 Raw AI Response (Actual Output)
+                        <div className="inline-flex items-center gap-2">
+                          <span className="w-5 inline-flex justify-center" aria-hidden>🤖</span>
+                          <span>Raw AI Response (Actual Output)</span>
+                        </div>
                       </AccordionTrigger>
                       <AccordionContent>
                         <div className="space-y-2">
@@ -275,7 +279,10 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
                   {/* 规范化后的数据 */}
                   <AccordionItem value="normalized">
                     <AccordionTrigger className="font-medium">
-                      📊 Normalized Data (After Processing)
+                      <div className="inline-flex items-center gap-2">
+                        <span className="w-5 inline-flex justify-center" aria-hidden>📊</span>
+                        <span>Normalized Data (After Processing)</span>
+                      </div>
                     </AccordionTrigger>
                     <AccordionContent>
                       <div className="space-y-2">
@@ -293,7 +300,10 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
                   {validation && (
                     <AccordionItem value="validation">
                       <AccordionTrigger className="font-medium">
-                        ✅ Validation Status
+                        <div className="inline-flex items-center gap-2">
+                          <span className="w-5 inline-flex justify-center" aria-hidden>✅</span>
+                          <span>Validation Status</span>
+                        </div>
                       </AccordionTrigger>
                       <AccordionContent>
                         <div className="space-y-2">
@@ -332,6 +342,18 @@ export function ResultsDisplay({ results, onAnalyzeAgain, onDownloadReport }: Re
                       </AccordionContent>
                     </AccordionItem>
                   )}
+                  {/* Natural Language Narrative */}
+                  <AccordionItem value="narrative">
+                    <AccordionTrigger className="font-medium">
+                      <div className="inline-flex items-center gap-2">
+                        <span className="w-5 inline-flex justify-center" aria-hidden>📝</span>
+                        <span>Natural Language Narrative</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <NarrativeDetails data={data as any} showHeading={false} />
+                    </AccordionContent>
+                  </AccordionItem>
                 </Accordion>
               </CardContent>
             </Card>
