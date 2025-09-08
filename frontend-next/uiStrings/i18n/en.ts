@@ -35,13 +35,6 @@ export const en = {
     reloadPage: 'Reload page',
     clearFilter: 'Clear filter',
     run: 'Run',
-    edit: 'Edit',
-    done: 'Done',
-    delete: 'Delete',
-    deleteSelected: 'Delete selected',
-    cancel: 'Cancel',
-    cancelAll: 'Cancel all',
-    retry: 'Retry',
   },
   upload: {
     banner: 'Uploading {total} items (Active {active}, Queued {queued})',
