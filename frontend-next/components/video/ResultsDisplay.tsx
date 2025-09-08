@@ -27,11 +27,11 @@ import React, { useMemo } from 'react';
 
 import NarrativeDetails from '@/components/video/NarrativeDetails';
 import type { AnalysisResult } from '@/lib/validation';
+import EditableSummary from './EditableSummary';
 import { FlagsPills } from './FlagsPills';
 // 导入新组件
 import { OverviewCard } from './OverviewCard';
 import { RecommendationsList } from './RecommendationsList';
-import EditableSummary from './EditableSummary';
 import { TimelineAnalysis } from './TimelineAnalysis';
 
 // ---- local types for data quality ----

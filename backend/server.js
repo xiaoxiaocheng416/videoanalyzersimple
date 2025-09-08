@@ -30,10 +30,14 @@ app.use(express.json({ limit: '50mb' }));
 // Video analysis controller
 const videoController = require('./controllers/videoController');
 const mediaController = require('./controllers/mediaController');
+const batchesRouter = require('./routes/batches');
+const tasksCompatRouter = require('./routes/tasksCompat');
 
 // Routes
 app.post('/api/videos/upload', upload.single('video'), videoController.uploadVideo);
 app.post('/api/videos/analyze_url', videoController.analyzeUrl);
+app.use('/api', batchesRouter);
+app.use('/api', tasksCompatRouter); // Compatibility routes for /tasks page
 
 // Media streaming route with Range support
 app.get('/media/:id', mediaController.streamVideo);

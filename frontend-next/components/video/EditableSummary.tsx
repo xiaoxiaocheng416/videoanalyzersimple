@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { draftKey, clearSummaryDraft } from '../../utils/summaryDraft';
+import { clearSummaryDraft, draftKey } from '../../utils/summaryDraft';
 
 type Props = {
   analysisId: string;
@@ -12,9 +12,12 @@ type Props = {
 
 export default function EditableSummary({ analysisId, aiText, userText, onSave }: Props) {
   // Helper: Resolve initial source with validation
-  const resolveInitialSource = (storedSource: 'ai' | 'user' | undefined, userText?: string): 'ai' | 'user' => {
+  const resolveInitialSource = (
+    storedSource: 'ai' | 'user' | undefined,
+    userText?: string,
+  ): 'ai' | 'user' => {
     // Only use 'user' if we have actual user text
-    return (storedSource === 'user' && userText) ? 'user' : 'ai';
+    return storedSource === 'user' && userText ? 'user' : 'ai';
   };
 
   // Check localStorage on mount
@@ -22,25 +25,46 @@ export default function EditableSummary({ analysisId, aiText, userText, onSave }
   const storedData = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
   const parsedStoredData = storedData ? JSON.parse(storedData) : null;
   console.log('[Mount] localStorage summaryData:', parsedStoredData);
-  
+
   // FIX: Validate source against actual userText availability
   const initialSource = resolveInitialSource(parsedStoredData?.source, userText);
-  console.log('[Mount] initialSource calculation: stored=', parsedStoredData?.source, 'userText=', userText, '=> resolved to', initialSource);
-  
+  console.log(
+    '[Mount] initialSource calculation: stored=',
+    parsedStoredData?.source,
+    'userText=',
+    userText,
+    '=> resolved to',
+    initialSource,
+  );
+
   const [mode, setMode] = useState<'view' | 'edit'>('view');
   const [source, setSource] = useState<'ai' | 'user'>(initialSource);
-  
+
   // Local state for edited text (instead of modifying props)
   const [localUserText, setLocalUserText] = useState<string | undefined>(userText);
-  
+
   // FIX: Guarded displayText - only use userText if it exists (prioritize local state over prop)
   const effectiveUserText = localUserText ?? userText;
-  const displayText = (source === 'user' && effectiveUserText) ? effectiveUserText : aiText;
-  
+  const displayText = source === 'user' && effectiveUserText ? effectiveUserText : aiText;
+
   // Debug: Initial state
   console.log('[EditableSummary Init] analysisId=', analysisId);
-  console.log('[EditableSummary Init] source=', source, 'userText=', userText, 'aiText.len=', aiText?.length);
-  console.log('[DisplayText] source=', source, '=> using', source==='user' ? 'userText' : 'aiText', 'displayText.len=', displayText?.length);
+  console.log(
+    '[EditableSummary Init] source=',
+    source,
+    'userText=',
+    userText,
+    'aiText.len=',
+    aiText?.length,
+  );
+  console.log(
+    '[DisplayText] source=',
+    source,
+    '=> using',
+    source === 'user' ? 'userText' : 'aiText',
+    'displayText.len=',
+    displayText?.length,
+  );
 
   const [draft, setDraft] = useState(displayText);
   const [copied, setCopied] = useState(false);
@@ -54,10 +78,18 @@ export default function EditableSummary({ analysisId, aiText, userText, onSave }
       const local = typeof window !== 'undefined' ? localStorage.getItem(k) : null;
       // FIX: Use guarded displayText for initial draft value with effectiveUserText
       const effectiveUser = localUserText ?? userText;
-      const initialDraft = local ?? ((source === 'user' && effectiveUser) ? effectiveUser : aiText);
+      const initialDraft = local ?? (source === 'user' && effectiveUser ? effectiveUser : aiText);
       console.log('[Draft init] mode=', mode, 'analysisId=', analysisId);
-      console.log('[Draft init] local draft=', local?.length ? `${local.length} chars` : 'null/empty');
-      console.log('[Draft init] initialDraft.len=', initialDraft?.length, 'will use:', local ? 'localStorage' : 'guarded displayText');
+      console.log(
+        '[Draft init] local draft=',
+        local?.length ? `${local.length} chars` : 'null/empty',
+      );
+      console.log(
+        '[Draft init] initialDraft.len=',
+        initialDraft?.length,
+        'will use:',
+        local ? 'localStorage' : 'guarded displayText',
+      );
       setDraft(initialDraft);
       requestAnimationFrame(() => textRef.current?.focus());
     }
@@ -90,9 +122,12 @@ export default function EditableSummary({ analysisId, aiText, userText, onSave }
       } else {
         // Local storage simulation
         const storageKey = `summaryData:${analysisId}`;
-        localStorage.setItem(storageKey, JSON.stringify({ userText: src === 'user' ? text : null, source: src }));
+        localStorage.setItem(
+          storageKey,
+          JSON.stringify({ userText: src === 'user' ? text : null, source: src }),
+        );
       }
-      
+
       setMode('view');
       setSource(src);
       if (src === 'user') {
@@ -113,13 +148,13 @@ export default function EditableSummary({ analysisId, aiText, userText, onSave }
   };
 
   const onSaveClick = () => save(draft, 'user');
-  
+
   const onCancel = () => {
     // 还原为进入编辑前的展示文本
     setDraft(displayText);
     setMode('view');
   };
-  
+
   const onRevertToAI = () => {
     // 回到 AI 文本并保存为来源=AI
     save(aiText, 'ai');
@@ -154,11 +189,15 @@ export default function EditableSummary({ analysisId, aiText, userText, onSave }
           <h3 className="text-[15px] sm:text-base font-semibold">Improvement Summary</h3>
           <span
             className={`text-xs rounded px-1.5 py-0.5 ${
-              (source === 'user' && effectiveUserText) ? 'bg-indigo-50 text-indigo-600' : 'bg-gray-100 text-gray-600'
+              source === 'user' && effectiveUserText
+                ? 'bg-indigo-50 text-indigo-600'
+                : 'bg-gray-100 text-gray-600'
             }`}
           >
-            {(console.log('[Badge] source=', source, 'effectiveUserText=', !!effectiveUserText), 
-              (source === 'user' && effectiveUserText)) ? 'Edited' : 'AI'}
+            {(console.log('[Badge] source=', source, 'effectiveUserText=', !!effectiveUserText),
+            source === 'user' && effectiveUserText)
+              ? 'Edited'
+              : 'AI'}
           </span>
         </div>
 
@@ -168,7 +207,12 @@ export default function EditableSummary({ analysisId, aiText, userText, onSave }
               <button
                 onClick={() => {
                   console.log('[Edit click] source=', source);
-                  console.log('[Edit click] aiText.len=', aiText?.length, 'userText.len=', userText?.length);
+                  console.log(
+                    '[Edit click] aiText.len=',
+                    aiText?.length,
+                    'userText.len=',
+                    userText?.length,
+                  );
                   console.log('[Edit click] displayText.len=', displayText?.length);
                   console.log('[Edit click] analysisId=', analysisId);
                   setMode('edit');
@@ -187,7 +231,9 @@ export default function EditableSummary({ analysisId, aiText, userText, onSave }
                 onClick={onRevertToAI}
                 disabled={!(source === 'user' && effectiveUserText)}
                 className="px-3 py-1.5 text-sm rounded-md bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                title={!(source === 'user' && effectiveUserText) ? 'Already AI version' : 'Revert to AI'}
+                title={
+                  !(source === 'user' && effectiveUserText) ? 'Already AI version' : 'Revert to AI'
+                }
               >
                 Revert to AI
               </button>
@@ -231,7 +277,9 @@ export default function EditableSummary({ analysisId, aiText, userText, onSave }
             className="w-full rounded-lg border border-gray-300 p-3 outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             placeholder="Write your improvements here…"
           />
-          <div className="absolute right-2 bottom-2 text-xs text-gray-400">{draft.length} chars</div>
+          <div className="absolute right-2 bottom-2 text-xs text-gray-400">
+            {draft.length} chars
+          </div>
         </div>
       )}
     </div>

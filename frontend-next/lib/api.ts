@@ -13,14 +13,14 @@ export async function warmUpServer(): Promise<void> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout for warmup
-    
+
     const response = await fetch(`${API_BASE}/ping`, {
       method: 'GET',
-      signal: controller.signal
+      signal: controller.signal,
     });
-    
+
     clearTimeout(timeoutId);
-    
+
     if (response.ok) {
       console.log('[API] Server warmed up successfully');
     }
@@ -33,23 +33,27 @@ export async function warmUpServer(): Promise<void> {
 export async function fetchWithRetry(
   url: string,
   options: RequestInit,
-  retries = MAX_RETRIES
+  retries = MAX_RETRIES,
 ): Promise<Response> {
   try {
     const response = await fetch(url, options);
-    
+
     // If we get 502/503 (server not ready), retry
     if ((response.status === 502 || response.status === 503) && retries > 0) {
       console.log(`[API] Got ${response.status}, retrying... (${retries} retries left)`);
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * (MAX_RETRIES - retries + 1)));
+      await new Promise((resolve) =>
+        setTimeout(resolve, RETRY_DELAY * (MAX_RETRIES - retries + 1)),
+      );
       return fetchWithRetry(url, options, retries - 1);
     }
-    
+
     return response;
   } catch (error) {
     if (retries > 0) {
       console.log(`[API] Network error, retrying... (${retries} retries left)`);
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * (MAX_RETRIES - retries + 1)));
+      await new Promise((resolve) =>
+        setTimeout(resolve, RETRY_DELAY * (MAX_RETRIES - retries + 1)),
+      );
       return fetchWithRetry(url, options, retries - 1);
     }
     throw error;

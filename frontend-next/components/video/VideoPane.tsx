@@ -24,7 +24,7 @@ function parseTikTokId(url?: string | null): string | null {
 
 export const VideoPane: React.FC<VideoPaneProps> = ({ src, poster, type = 'upload', linkUrl }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  
+
   // Debug logging
   console.log('[VideoPane Debug]', {
     type,
@@ -32,7 +32,7 @@ export const VideoPane: React.FC<VideoPaneProps> = ({ src, poster, type = 'uploa
     linkUrl,
     poster: poster ? 'yes' : 'no',
     willUseVideo: !!src,
-    willUseIframe: !src && type === 'link' && linkUrl
+    willUseIframe: !src && type === 'link' && linkUrl,
   });
 
   // Ensure video element reloads on src change

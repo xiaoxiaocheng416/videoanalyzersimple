@@ -691,18 +691,59 @@ exports.uploadVideo = async (req, res) => {
       },
     };
 
-    // 使用内存存储，无需清理临时文件
+    // 为上传注册可播放媒体，并在响应中回填 meta.playable_url（https）
+    try {
+      const enablePlay = (process.env.ENABLE_UPLOAD_MEDIA_PLAY ?? '1') !== '0';
+      if (enablePlay) {
+        const { generateTokenId, getCacheFilePath } = require('../utils/videoCacheManager');
+        const xfProto = (req.headers['x-forwarded-proto'] || req.protocol || '').toString().split(',')[0];
+        const xfHost = (req.headers['x-forwarded-host'] || req.get('host') || '').toString().split(',')[0];
+        const publicApiOrigin = process.env.PUBLIC_API_ORIGIN || `${xfProto}://${xfHost}`;
+        const mediaId = generateTokenId(req.file.originalname + Date.now());
+        const mediaPath = getCacheFilePath(mediaId);
+        require('fs').mkdirSync(require('path').dirname(mediaPath), { recursive: true });
+        const outBuf = Buffer.from(base64Video, 'base64');
+        require('fs').writeFileSync(mediaPath, outBuf);
+        const sizeOut = require('fs').statSync(mediaPath).size;
+        // Set standard meta format with absolute URL
+        response.meta = {
+          playable_url: `${publicApiOrigin}/media/${mediaId}`,
+          content_type: 'video/mp4',
+          content_length: sizeOut,
+          source: 'upload'
+        };
+        // Keep backward compatibility with playableUrl (camelCase)
+        response.playableUrl = `/media/${mediaId}`;
+      }
+    } catch (e) {
+      console.warn('[uploadVideo] media register failed (non-fatal):', e?.message || e);
+    }
+
+    // 附加诊断信息（便于前端/批量链路保留）
+    response.diagnostics = Object.assign({}, response.diagnostics || {}, {
+      sanitized,
+      source: 'upload'
+    });
 
     console.log(`[分析完成] 耗时: ${analysisTime}ms (sanitized=${sanitized})`);
     res.json(response);
   } catch (error) {
     console.error('[错误] 视频分析失败:', error);
     
+    // 清理错误消息中的敏感信息
+    let cleanMessage = (error.message || 'Failed to analyze video')
+      .replace(/\[.*?Error\]:/gi, '') // 移除 [GoogleGenerativeAI Error] 等
+      .replace(/GoogleGenerativeAI/gi, '')
+      .replace(/Gemini/gi, '')
+      .replace(/Google/gi, '')
+      .replace(/\s+/g, ' ') // 清理多余空格
+      .trim();
+    
     // 使用内存存储，无需清理文件
 
     res.status(500).json({
       success: false,
-      message: error.message || 'Failed to analyze video',
+      message: cleanMessage || 'Failed to analyze video',
       error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
     });
   }
@@ -1023,8 +1064,18 @@ exports.analyzeUrl = async (req, res) => {
     });
   } catch (err) {
     console.error('analyze_url error', err);
+    
+    // 清理错误消息中的敏感信息
+    let cleanMessage = (err?.message || String(err))
+      .replace(/\[.*?Error\]:/gi, '') // 移除 [GoogleGenerativeAI Error] 等
+      .replace(/GoogleGenerativeAI/gi, '')
+      .replace(/Gemini/gi, '')
+      .replace(/Google/gi, '')
+      .replace(/\s+/g, ' ') // 清理多余空格
+      .trim();
+    
     const code = /timed out|Timeout/i.test(String(err)) ? 'UPSTREAM_TIMEOUT' : 'DOWNLOAD_FAILED';
     const status = code === 'UPSTREAM_TIMEOUT' ? 504 : 422;
-    res.status(status).json({ ok: false, code, message: err?.message || String(err) });
+    res.status(status).json({ ok: false, code, message: cleanMessage });
   }
 };
