@@ -6,7 +6,8 @@ import { FilterBar, StatusFilter, SourceFilter, SortBy } from './FilterBar';
 import { TaskTable } from './TaskTable';
 import { ExportBar, ExportScope, ExportFormat } from './ExportBar';
 import { ConcurrencyPool, UploadTask } from '@/lib/tasks-runner/uploader';
-import { createUrlTasks, listTasks, deleteTask, retryTask } from '@/lib/tasks-runner/api-batch-compat';
+import { createUrlTasks, listTasks, deleteTask } from '@/lib/tasks-runner/api-batch-compat';
+import { retryTask } from '@/lib/tasks-runner/api';
 import type { RowState, CreateTasksResponse, TaskItem } from '@/lib/tasks-runner/types';
 import { mergeTaskLists, taskItemToRowState } from '@/lib/tasks-runner/utils';
 import { en as t } from '@/uiStrings/i18n/en';
@@ -23,23 +24,23 @@ export default function TaskRunner() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editMode, setEditMode] = useState(false);
   const [taskLimit, setTaskLimit] = useState(100);
-  
+
   // Button states to prevent double-clicks
   const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [loadingTasks, setLoadingTasks] = useState(false);
-  
+
   // Concurrency pool
   const poolRef = useRef<ConcurrencyPool | null>(null);
   const [concurrency, setConcurrency] = useState(DEFAULT_CONCURRENCY);
-  
+
   // URL deduplication
   const processedUrlsRef = useRef<Set<string>>(new Set());
-  
+
   // Polling management
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isPollingActiveRef = useRef(true);
-  
+
   // Start polling
   const startPolling = useCallback(() => {
     // Clear any existing interval first
@@ -47,13 +48,13 @@ export default function TaskRunner() {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    
+
     // Only start if should be polling
     if (isPollingActiveRef.current) {
       intervalRef.current = setInterval(loadTasks, POLL_INTERVAL_MS);
     }
   }, []);
-  
+
   // Stop polling
   const stopPolling = useCallback(() => {
     if (intervalRef.current) {
@@ -61,7 +62,7 @@ export default function TaskRunner() {
       intervalRef.current = null;
     }
   }, []);
-  
+
   // Handle visibility change for polling management
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -76,39 +77,39 @@ export default function TaskRunner() {
         startPolling();
       }
     };
-    
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [startPolling, stopPolling]);
-  
+
   // Initialize pool and start polling
   useEffect(() => {
     poolRef.current = new ConcurrencyPool(concurrency);
     loadTasks(); // Initial load
     startPolling(); // Start polling
-    
+
     return () => {
       poolRef.current?.cancelAll();
       stopPolling();
     };
   }, [startPolling, stopPolling]);
-  
+
   // Update pool capacity
   const handleConcurrencyChange = useCallback((value: number) => {
     setConcurrency(value);
     poolRef.current?.setCapacity(value);
   }, []);
-  
+
   // Normalize URL for deduplication
   const normalizeUrl = (url: string): string => {
     try {
       const u = new URL(url.trim());
       u.hash = '';
       // Remove tracking params
-      ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach(k => 
+      ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach(k =>
         u.searchParams.delete(k)
       );
       return u.toString().replace(/\/$/, '');
@@ -116,7 +117,7 @@ export default function TaskRunner() {
       return url.trim();
     }
   };
-  
+
   // Validate URL
   const isValidUrl = (url: string): boolean => {
     try {
@@ -126,40 +127,40 @@ export default function TaskRunner() {
       return false;
     }
   };
-  
+
   // Add URLs to queue
   const handleAddUrls = useCallback(async (urls: string[]) => {
     const validUrls: string[] = [];
     const errors: string[] = [];
-    
+
     for (const url of urls) {
       const normalized = normalizeUrl(url);
-      
+
       if (!isValidUrl(normalized)) {
         errors.push(`${url}: ${t.tasksRunner.validation.invalidUrl}`);
         continue;
       }
-      
+
       if (processedUrlsRef.current.has(normalized)) {
         errors.push(`${url}: ${t.tasksRunner.validation.duplicateUrl}`);
         continue;
       }
-      
+
       validUrls.push(normalized);
       processedUrlsRef.current.add(normalized);
     }
-    
+
     if (errors.length > 0) {
       alert(errors.join('\n'));
     }
-    
+
     if (validUrls.length === 0) {
       if (urls.length > 0) {
         alert(t.tasksRunner.validation.noUrls);
       }
       return;
     }
-    
+
     // Create local tasks
     const newTasks: RowState[] = validUrls.map(url => ({
       id: `local_${Date.now()}_${Math.random().toString(36).slice(2)}`,
@@ -168,9 +169,9 @@ export default function TaskRunner() {
       url,
       updatedAt: new Date().toISOString(),
     }));
-    
+
     setTasks(prev => [...prev, ...newTasks]);
-    
+
     // Add to pool for processing
     for (const task of newTasks) {
       const uploadTask: UploadTask = {
@@ -179,15 +180,15 @@ export default function TaskRunner() {
         retryCount: 0,
         status: 'queued',
         onProgress: (progress) => {
-          setTasks(prev => prev.map(t => 
+          setTasks(prev => prev.map(t =>
             t.id === task.id ? { ...t, progress } : t
           ));
         },
         onComplete: (response: CreateTasksResponse) => {
           // Update with remote ID - keep status as queued
           const remoteId = response.created?.[0]?.id;
-          setTasks(prev => prev.map(t => 
-            t.id === task.id 
+          setTasks(prev => prev.map(t =>
+            t.id === task.id
               ? { ...t, status: 'queued', progress: 0, remoteId, updatedAt: new Date().toISOString() }
               : t
           ));
@@ -195,18 +196,18 @@ export default function TaskRunner() {
           setTimeout(() => loadTasks(), 500);
         },
         onError: (error) => {
-          setTasks(prev => prev.map(t => 
-            t.id === task.id 
+          setTasks(prev => prev.map(t =>
+            t.id === task.id
               ? { ...t, status: 'failed', error: { code: 'UPLOAD_ERROR', message: error.message }, updatedAt: new Date().toISOString() }
               : t
           ));
         },
       };
-      
+
       await poolRef.current?.addTask(uploadTask);
     }
   }, []);
-  
+
   // Add files to queue
   const handleAddFiles = useCallback(async (files: File[]) => {
     const newTasks: RowState[] = files.map(file => ({
@@ -217,37 +218,37 @@ export default function TaskRunner() {
       sizeBytes: file.size,
       updatedAt: new Date().toISOString(),
     }));
-    
+
     setTasks(prev => [...prev, ...newTasks]);
-    
+
     // Check for large files
     for (const file of files) {
       if (file.size > 80 * 1024 * 1024) {
         console.log(`File ${file.name}: ${t.tasksRunner.validation.fileTooLarge}`);
       }
     }
-    
+
     // Add to pool
     for (let i = 0; i < files.length; i++) {
       const task = newTasks[i];
       const file = files[i];
-      
+
       const uploadTask: UploadTask = {
         id: task.id,
         file,
         retryCount: 0,
         status: 'queued',
         onProgress: (progress) => {
-          setTasks(prev => prev.map(t => 
-            t.id === task.id 
+          setTasks(prev => prev.map(t =>
+            t.id === task.id
               ? { ...t, status: 'running', progress, updatedAt: new Date().toISOString() }
               : t
           ));
         },
         onComplete: (response: CreateTasksResponse) => {
           const remoteId = response.created?.[0]?.id;
-          setTasks(prev => prev.map(t => 
-            t.id === task.id 
+          setTasks(prev => prev.map(t =>
+            t.id === task.id
               ? { ...t, status: 'queued', progress: 0, remoteId, updatedAt: new Date().toISOString() }
               : t
           ));
@@ -255,14 +256,14 @@ export default function TaskRunner() {
           setTimeout(() => loadTasks(), 500);
         },
         onError: (error) => {
-          setTasks(prev => prev.map(t => 
-            t.id === task.id 
-              ? { 
-                  ...t, 
-                  status: 'failed', 
-                  error: { 
-                    code: error.message === 'Aborted' ? 'ABORTED' : 'UPLOAD_ERROR', 
-                    message: error.message 
+          setTasks(prev => prev.map(t =>
+            t.id === task.id
+              ? {
+                  ...t,
+                  status: 'failed',
+                  error: {
+                    code: error.message === 'Aborted' ? 'ABORTED' : 'UPLOAD_ERROR',
+                    message: error.message
                   },
                   updatedAt: new Date().toISOString()
                 }
@@ -270,68 +271,68 @@ export default function TaskRunner() {
           ));
         },
       };
-      
+
       await poolRef.current?.addTask(uploadTask);
     }
   }, []);
-  
+
   // Run tasks (one-click Run)
   const handleRunTasks = useCallback(async (urlsFromInput?: string[]) => {
     // If URLs provided, add them first
     if (urlsFromInput && urlsFromInput.length > 0) {
       await handleAddUrls(urlsFromInput);
     }
-    
+
     // Tasks are automatically run when added to pool
     // Force immediate refresh
     setTimeout(() => loadTasks(), 500);
   }, [handleAddUrls]);
-  
+
   // Cancel all
   const handleCancelAll = useCallback(() => {
     poolRef.current?.cancelAll();
-    setTasks(prev => prev.map(t => 
+    setTasks(prev => prev.map(t =>
       (t.status === 'queued' || t.status === 'running')
-        ? { 
-            ...t, 
-            status: 'failed', 
+        ? {
+            ...t,
+            status: 'failed',
             error: { code: 'ABORTED', message: 'Aborted' },
             updatedAt: new Date().toISOString()
           }
         : t
     ));
   }, []);
-  
+
   // Clear queue
   const handleClearQueue = useCallback(() => {
     const queuedIds = tasks.filter(t => t.status === 'queued').map(t => t.id);
     queuedIds.forEach(id => poolRef.current?.cancelTask(id));
     setTasks(prev => prev.filter(t => t.status !== 'queued'));
   }, [tasks]);
-  
+
   // Cancel single task
   const handleCancel = useCallback((taskId: string) => {
     poolRef.current?.cancelTask(taskId);
-    setTasks(prev => prev.map(t => 
-      t.id === taskId 
-        ? { 
-            ...t, 
-            status: 'failed', 
+    setTasks(prev => prev.map(t =>
+      t.id === taskId
+        ? {
+            ...t,
+            status: 'failed',
             error: { code: 'ABORTED', message: 'Aborted' },
             updatedAt: new Date().toISOString()
           }
         : t
     ));
   }, []);
-  
+
   // Load tasks from server
   const loadTasks = useCallback(async () => {
     if (loadingTasks) return;
-    
+
     try {
       setLoadingTasks(true);
       const response = await listTasks({ limit: 1000 });
-      
+
       // Transform tasks to match our format
       const transformedTasks: RowState[] = response.tasks.map(task => ({
         id: task.id,
@@ -344,7 +345,7 @@ export default function TaskRunner() {
         updatedAt: task.updatedAt || new Date().toISOString(),
         result: task.result
       }));
-      
+
       // Merge server tasks with local tasks
       setTasks(prev => mergeTaskLists(prev, transformedTasks));
     } catch (error) {
@@ -353,24 +354,24 @@ export default function TaskRunner() {
       setLoadingTasks(false);
     }
   }, [loadingTasks]);
-  
+
   // Retry task
   const handleRetry = useCallback(async (taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task || retryingIds.has(taskId)) return;
-    
+
     // Add to retrying set
     setRetryingIds(prev => new Set(prev).add(taskId));
-    
+
     try {
       // Different behavior for URL vs File
       if (task.source === 'url' && task.remoteId) {
         // URL: Call retry API
         const response = await retryTask(task.remoteId);
-        
+
         // Update task with new state from server
-        setTasks(prev => prev.map(t => 
-          t.id === taskId 
+        setTasks(prev => prev.map(t =>
+          t.id === taskId
             ? taskItemToRowState(response)
             : t
         ));
@@ -379,43 +380,43 @@ export default function TaskRunner() {
         alert(t.tasksRunner.validation.fileRetryNotSupported || 'File tasks cannot be retried. Please re-upload the file.');
       } else if (task.source === 'url' && !task.remoteId) {
         // URL task without remoteId - re-add to pool
-        setTasks(prev => prev.map(t => 
-          t.id === taskId 
+        setTasks(prev => prev.map(t =>
+          t.id === taskId
             ? { ...t, status: 'queued', progress: 0, error: undefined, updatedAt: new Date().toISOString() }
             : t
         ));
-        
+
         const uploadTask: UploadTask = {
           id: task.id,
           url: task.url,
           retryCount: 0,
           status: 'queued',
           onProgress: (progress) => {
-            setTasks(prev => prev.map(t => 
-              t.id === taskId 
+            setTasks(prev => prev.map(t =>
+              t.id === taskId
                 ? { ...t, status: 'running', progress, updatedAt: new Date().toISOString() }
                 : t
             ));
           },
           onComplete: (response: CreateTasksResponse) => {
             const remoteId = response.created?.[0]?.id;
-            setTasks(prev => prev.map(t => 
-              t.id === taskId 
+            setTasks(prev => prev.map(t =>
+              t.id === taskId
                 ? { ...t, status: 'queued', progress: 0, remoteId, updatedAt: new Date().toISOString() }
                 : t
             ));
-            // Immediately trigger a status update from server  
+            // Immediately trigger a status update from server
             setTimeout(() => loadTasks(), 500);
           },
           onError: (error) => {
-            setTasks(prev => prev.map(t => 
-              t.id === taskId 
+            setTasks(prev => prev.map(t =>
+              t.id === taskId
                 ? { ...t, status: 'failed', error: { code: 'RETRY_FAILED', message: error.message }, updatedAt: new Date().toISOString() }
                 : t
             ));
           },
         };
-        
+
         await poolRef.current?.addTask(uploadTask);
       }
     } catch (error: any) {
@@ -430,20 +431,20 @@ export default function TaskRunner() {
       });
     }
   }, [tasks, retryingIds]);
-  
+
   // Delete tasks
   const handleDelete = useCallback(async (taskIds: string[]) => {
     // Check if any tasks are being deleted
     const alreadyDeleting = taskIds.some(id => deletingIds.has(id));
     if (alreadyDeleting) return;
-    
+
     // Add to deleting set
     setDeletingIds(prev => {
       const next = new Set(prev);
       taskIds.forEach(id => next.add(id));
       return next;
     });
-    
+
     try {
       // Cancel if running
       taskIds.forEach(id => {
@@ -452,12 +453,12 @@ export default function TaskRunner() {
           poolRef.current?.cancelTask(id);
         }
       });
-      
+
       // Call delete API for remote tasks (using remoteId or id)
       const deletePromises = taskIds.map(async id => {
         const task = tasks.find(t => t.id === id);
         const idToDelete = task?.remoteId || id;
-        
+
         if (task?.remoteId) {
           try {
             await deleteTask(idToDelete);
@@ -471,9 +472,9 @@ export default function TaskRunner() {
           }
         }
       });
-      
+
       await Promise.all(deletePromises);
-      
+
       // Remove from state
       setTasks(prev => prev.filter(t => !taskIds.includes(t.id)));
       setSelectedIds(new Set());
@@ -487,27 +488,27 @@ export default function TaskRunner() {
       });
     }
   }, [tasks, deletingIds]);
-  
+
   // Export handler - simplified since logic moved to ExportBar
   const handleExport = useCallback((scope: ExportScope, format: ExportFormat, perItem: boolean) => {
     // This is now just a placeholder - actual export logic is in ExportBar
     console.log('Export triggered:', { scope, format, perItem });
   }, []);
-  
+
   // Filter and sort tasks
   const getFilteredTasks = useCallback(() => {
     let filtered = [...tasks];
-    
+
     // Status filter
     if (statusFilter) {
       filtered = filtered.filter(t => t.status === statusFilter);
     }
-    
+
     // Source filter
     if (sourceFilter) {
       filtered = filtered.filter(t => t.source === sourceFilter);
     }
-    
+
     // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -519,7 +520,7 @@ export default function TaskRunner() {
         return title.includes(query) || url.includes(query) || fileName.includes(query) || id.includes(query);
       });
     }
-    
+
     // Sort
     filtered.sort((a, b) => {
       switch (sortBy) {
@@ -535,10 +536,10 @@ export default function TaskRunner() {
           return 0;
       }
     });
-    
+
     return filtered;
   }, [tasks, statusFilter, sourceFilter, searchQuery, sortBy]);
-  
+
   // Get status counts
   const getStatusCounts = useCallback(() => {
     const counts = {
@@ -547,21 +548,21 @@ export default function TaskRunner() {
       success: 0,
       failed: 0,
     };
-    
+
     tasks.forEach(t => {
       if (t.status in counts) {
         counts[t.status as keyof typeof counts]++;
       }
     });
-    
+
     return counts;
   }, [tasks]);
-  
+
   const filteredTasks = getFilteredTasks();
   const statusCounts = getStatusCounts();
   const queuedCount = tasks.filter(t => t.status === 'queued').length;
   const runningCount = tasks.filter(t => t.status === 'running').length;
-  
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl space-y-6">
       <div className="flex items-center justify-between">
@@ -573,7 +574,7 @@ export default function TaskRunner() {
           {editMode ? 'Done' : 'Edit'}
         </button>
       </div>
-      
+
       <ImportBox
         onAddUrls={handleAddUrls}
         onAddFiles={handleAddFiles}
@@ -586,7 +587,7 @@ export default function TaskRunner() {
         queuedCount={queuedCount}
         runningCount={runningCount}
       />
-      
+
       <FilterBar
         statusFilter={statusFilter}
         sourceFilter={sourceFilter}
@@ -604,7 +605,7 @@ export default function TaskRunner() {
           setSearchQuery('');
         }}
       />
-      
+
       <TaskTable
         tasks={filteredTasks.slice(0, taskLimit)}
         loading={loading || loadingTasks}
@@ -619,7 +620,7 @@ export default function TaskRunner() {
         retryingIds={retryingIds}
         deletingIds={deletingIds}
       />
-      
+
       <ExportBar
         tasks={tasks}
         filteredTasks={filteredTasks}
