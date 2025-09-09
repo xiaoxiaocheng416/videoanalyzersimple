@@ -39,6 +39,19 @@ type Task = {
   ephemeralAt?: number; // epoch ms
 };
 
+type OptimisticTask = {
+  tempId: string;
+  fileName: string;
+  fileSize: number;
+  fileLastModified: number;
+  status: 'uploading' | 'creating' | 'error';
+  startedAt: number;
+  creatingDeadline?: number; // Deadline for creating state before considering it failed
+  progress?: number;
+};
+
+const CREATION_TTL_MS = 45000; // 45 seconds grace period for task creation
+
 export default function BatchPage() {
   return (
     <ToastProvider>
@@ -186,8 +199,23 @@ function mergeDisplayTasksById(existing: Task[], incoming: Task[]): Task[] {
 }
 
 
-function getDisplayTasks(server: Task[], sortBy: 'updatedAtDesc' | 'createdAtDesc' | 'status', statusFilter: string) {
-  const mergedServer = mergeDisplayTasksById([], server || []);
+function getDisplayTasks(server: Task[], sortBy: 'updatedAtDesc' | 'createdAtDesc' | 'status', statusFilter: string, optimistic?: Map<string, OptimisticTask>) {
+  // Convert optimistic tasks to Task format
+  const optimisticAsTasks: Task[] = optimistic ? Array.from(optimistic.values()).map(opt => ({
+    id: opt.tempId,
+    batchId: '',
+    kind: 'file' as const,
+    payload: { localPath: opt.fileName },
+    status: opt.status === 'uploading' ? 'queued' : opt.status === 'creating' ? 'running' : opt.status === 'error' ? 'failed' : 'queued',
+    progress: opt.progress,
+    updatedAt: new Date(opt.startedAt).toISOString(),
+    ephemeral: true,
+    ephemeralAt: opt.startedAt,
+  })) : [];
+  
+  // Merge server and optimistic tasks
+  const allTasks = [...(server || []), ...optimisticAsTasks];
+  const mergedServer = mergeDisplayTasksById([], allTasks);
   const filtered = statusFilter ? mergedServer.filter((t) => t.status === statusFilter) : mergedServer;
   const sorted = sortTasks(filtered, sortBy);
   return sorted;
@@ -210,10 +238,15 @@ function sortTasks(list: Task[], sortBy: 'updatedAtDesc' | 'createdAtDesc' | 'st
 // Reconcile handled in getDisplayTasks()
 
 function BatchPageInner() {
+  // Feature flag for optimistic rendering
+  const qs = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const OPTIMISTIC = process.env.NEXT_PUBLIC_BATCH_OPTIMISTIC === '1' || qs.get('optimistic') === '1';
+  
   const { toast } = useToastLite();
   const [batch, setBatch] = useState<Batch | null>(null);
   const [urls, setUrls] = useState('');
   const [serverTasks, setServerTasks] = useState<Task[]>([]);
+  const [optimisticTasks, setOptimisticTasks] = useState<Map<string, OptimisticTask>>(new Map());
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -250,6 +283,8 @@ function BatchPageInner() {
   const tombstonesRef = useRef<Map<string, number>>(new Map());
   const [tombstoneVer, setTombstoneVer] = useState(0);
   const replaceNextRefreshRef = useRef(false);
+  const lastSoftRefreshRef = useRef<number>(0);
+  const fileToTempIdMap = useRef<WeakMap<File, string>>(new WeakMap());
 
   const addTombstones = useCallback((ids: string[], ttlMs = 60000) => {
     const until = Date.now() + ttlMs;
@@ -274,6 +309,101 @@ function BatchPageInner() {
       }),
     [tombstoneVer],
   );
+
+  // Optimistic task management functions
+  const addOptimisticTask = useCallback((file: File): string => {
+    if (!OPTIMISTIC) return '';
+    const tempId = `opt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setOptimisticTasks((prev) => {
+      const next = new Map(prev);
+      next.set(tempId, {
+        tempId,
+        fileName: file.name,
+        fileSize: file.size,
+        fileLastModified: file.lastModified,
+        status: 'uploading',
+        startedAt: Date.now(),
+        progress: 0,
+      });
+      return next;
+    });
+    fileToTempIdMap.current.set(file, tempId);
+    return tempId;
+  }, [OPTIMISTIC]);
+
+  const updateOptimisticTask = useCallback((tempId: string, updates: Partial<OptimisticTask>) => {
+    if (!OPTIMISTIC) return;
+    setOptimisticTasks((prev) => {
+      const next = new Map(prev);
+      const task = next.get(tempId);
+      if (task) {
+        next.set(tempId, { ...task, ...updates });
+      }
+      return next;
+    });
+  }, [OPTIMISTIC]);
+
+  const removeOptimisticTask = useCallback((tempId: string) => {
+    if (!OPTIMISTIC) return;
+    setOptimisticTasks((prev) => {
+      const next = new Map(prev);
+      next.delete(tempId);
+      return next;
+    });
+  }, [OPTIMISTIC]);
+
+  // Soft refresh with throttling for single file completion
+  const softRefresh = useCallback(async () => {
+    if (!OPTIMISTIC || !batch) return;
+    const now = Date.now();
+    if (now - lastSoftRefreshRef.current < 400) return; // Throttle to 400ms
+    lastSoftRefreshRef.current = now;
+    
+    // Just fetch tasks without full batch refresh
+    try {
+      const url = new URL(`${API_BASE}/batches/${batch.id}/tasks`, location.origin);
+      if (statusFilter) url.searchParams.set('status', statusFilter);
+      url.searchParams.set('limit', String(tasksLimit));
+      
+      const tasksResp = await fetchJSON<{ tasks: Task[] }>(url.toString(), {
+        timeoutMs: 3000,
+        retries: 0,
+        credentials: 'include', // Ensure cookies are sent
+      });
+      
+      if (tasksResp?.tasks) {
+        setServerTasks(tasksResp.tasks);
+        // Reconcile: match optimistic tasks with server tasks
+        optimisticTasks.forEach((optTask, tempId) => {
+          if (optTask.status === 'creating') {
+            // Try to match by file name and size
+            const fileName = optTask.fileName;
+            const matched = tasksResp.tasks.find((serverTask) => {
+              const serverFileName = serverTask.payload?.localPath?.split('/').pop() || '';
+              // Match by name and size (if available)
+              return serverFileName === fileName;
+              // TODO: Add size matching when server provides it
+            });
+            
+            if (matched) {
+              // Found match, remove optimistic task
+              removeOptimisticTask(tempId);
+            } else {
+              // No match found, check if deadline exceeded
+              const deadline = optTask.creatingDeadline || (optTask.startedAt + CREATION_TTL_MS);
+              if (Date.now() > deadline) {
+                // Only mark as error if deadline exceeded
+                updateOptimisticTask(tempId, { status: 'error' });
+              }
+              // Otherwise keep it in creating state
+            }
+          }
+        });
+      }
+    } catch (e) {
+      console.debug('[softRefresh] error:', e);
+    }
+  }, [OPTIMISTIC, batch, statusFilter, tasksLimit, optimisticTasks, removeOptimisticTask, updateOptimisticTask]);
 
   // Helper: per-user localStorage key
   const getUserKey = useCallback(() => {
@@ -480,6 +610,14 @@ function BatchPageInner() {
     return filtered;
   }, [allBatches, batchSearch]);
 
+  // Merged tasks for display (server + optimistic)
+  const mergedTasks = useMemo(() => {
+    if (!OPTIMISTIC || optimisticTasks.size === 0) {
+      return getDisplayTasks(filterTombstones(serverTasks), sortBy, statusFilter);
+    }
+    return getDisplayTasks(filterTombstones(serverTasks), sortBy, statusFilter, optimisticTasks);
+  }, [serverTasks, optimisticTasks, sortBy, statusFilter, tombstoneVer, OPTIMISTIC]);
+
   // Unified refresh function with requestId guard and enhanced error handling
   const refresh = React.useCallback(
     async (immediate = false, force = false) => {
@@ -576,10 +714,25 @@ function BatchPageInner() {
   // Poll tasks (5s) - always active as fallback
   useEffect(() => {
     const t = setInterval(() => {
-      if (!document.hidden) refresh(false, false);
+      if (!document.hidden) {
+        refresh(false, false);
+        
+        // Check optimistic task deadlines
+        if (OPTIMISTIC) {
+          const now = Date.now();
+          optimisticTasks.forEach((task, tempId) => {
+            if (task.status === 'creating') {
+              const deadline = task.creatingDeadline || (task.startedAt + CREATION_TTL_MS);
+              if (now > deadline) {
+                updateOptimisticTask(tempId, { status: 'error' });
+              }
+            }
+          });
+        }
+      }
     }, 5000);
     return () => clearInterval(t);
-  }, [refresh]);
+  }, [refresh, OPTIMISTIC, optimisticTasks, updateOptimisticTask]);
 
   // Cleanup expired tombstones
   useEffect(() => {
@@ -664,7 +817,7 @@ function BatchPageInner() {
     }
     // Avoid duplicates with existing tasks (same name)
     const existingNames = new Set(
-      getDisplayTasks(serverTasks, sortBy, '').filter((t) => t.kind === 'file').map((t) => (t.payload?.localPath || '').split('/').pop() || ''),
+      mergedTasks.filter((t) => t.kind === 'file').map((t) => (t.payload?.localPath || '').split('/').pop() || ''),
     );
     const deduped = valid.filter((f) => !existingNames.has(f.name));
     if (deduped.length < valid.length) {
@@ -712,10 +865,30 @@ function BatchPageInner() {
         onUpdate: (active, queued, done) => setUploadStats((s) => ({ active, queued, done, total: s?.total || active + queued + done })),
         onItemStart: (item) => {
           setActiveUploads((prev) => [...prev.filter((x) => x.id !== item.id), { id: item.id, name: item.file.name }]);
+          // Add optimistic task when upload starts
+          if (OPTIMISTIC) {
+            const tempId = addOptimisticTask(item.file);
+          }
         },
-        onItemComplete: (item, ok) => {
+        onItemComplete: (item, ok, error) => {
           setActiveUploads((prev) => prev.filter((x) => x.id !== item.id));
-          // Don't refresh on each item, wait for complete
+          // Update optimistic task status and trigger soft refresh
+          if (OPTIMISTIC) {
+            const tempId = fileToTempIdMap.current.get(item.file);
+            if (tempId) {
+              if (ok) {
+                // Set creating state with deadline
+                updateOptimisticTask(tempId, { 
+                  status: 'creating',
+                  creatingDeadline: Date.now() + CREATION_TTL_MS 
+                });
+                softRefresh(); // Soft refresh to get the real task
+              } else {
+                // Only mark as error for actual upload failures
+                updateOptimisticTask(tempId, { status: 'error' });
+              }
+            }
+          }
         },
         onComplete: ({ total, succeeded, failed }) => {
           setIsUploading(false);
@@ -743,7 +916,7 @@ function BatchPageInner() {
     if (raw.length === 0) return;
     const normed = Array.from(new Set(raw.map(normalizeUrl)));
     const existing = new Set(
-      getDisplayTasks(serverTasks, sortBy, '').filter((t) => t.kind === 'url').map((t) => normalizeUrl(t.payload?.url || '')),
+      mergedTasks.filter((t) => t.kind === 'url').map((t) => normalizeUrl(t.payload?.url || '')),
     );
     const newOnes = normed.filter((u) => u && !existing.has(u));
     const dupCount = normed.length - newOnes.length;
@@ -773,7 +946,7 @@ function BatchPageInner() {
   // removed legacy uploadFiles: replaced by handleFileSelect + startUpload
 
   const retryFailed = async () => {
-    const all = getDisplayTasks(serverTasks, sortBy, statusFilter);
+    const all = mergedTasks;
     const failed = all.filter((t) => t.status === 'failed');
     for (const t of failed) {
       await fetchJSON(`${API_BASE}/tasks/${t.id}/retry`, { method: 'POST', retries: 1, backoffMs: 500 }).catch(() => null);
@@ -885,34 +1058,9 @@ function BatchPageInner() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">{t.batch.title}</h1>
-          <p className="text-sm text-muted-foreground">
-            Batch ID: {batch.id} · Created: {new Date(batch.createdAt).toLocaleString()}
-            {/* header info */}
-          </p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-500">
-            {t.header.lastSynced} {lastSyncedAt ? lastSyncedAt.toLocaleTimeString('en-US', { hour12: false }) : '—'}
-          </span>
-          <span className="text-xs text-gray-500">
-            {syncStatus === 'syncing' ? t.header.syncing : syncStatus === 'retrying' ? t.header.retrying : t.header.idle}
-          </span>
           <Button variant="secondary" onClick={() => refresh(true, true)}>{t.header.refresh}</Button>
-          <input
-            className="border rounded px-2 py-1 text-sm"
-            placeholder="Search batches…"
-            value={batchSearch}
-            onChange={(e) => setBatchSearch(e.target.value)}
-          />
-          <select
-            className="border rounded px-2 py-1 text-sm"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-          >
-            <option value="updatedAtDesc">{t.header.sortUpdated}</option>
-            <option value="status">{t.header.sortStatus}</option>
-            <option value="createdAtDesc">{t.header.sortCreated}</option>
-          </select>
           <select
             className="border rounded px-2 py-1 text-sm"
             onChange={(e) => selectBatch(e.target.value)}
@@ -921,27 +1069,25 @@ function BatchPageInner() {
             {batchList.length === 0 && <option value={batch.id}>{batch.title || batch.id}</option>}
             {batchList.map((b) => (
               <option key={b.id} value={b.id}>
-                {b.title || b.id} · {new Date(b.createdAt).toLocaleString()}
+                {b.title || b.id}
               </option>
             ))}
           </select>
-          <Button
-            variant="secondary"
-            disabled={batchLoading || (batchTotal !== null && batchList.length >= (batchTotal || 0))}
-            onClick={() => fetchBatchesPage(batchOffset + batchLimit, batchSearch)}
-          >
-            {batchLoading ? 'Loading…' : 'Load more batches'}
-          </Button>
-          {!!batchError && (
-            <span className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded px-2 py-1">
-              {batchError}
-            </span>
-          )}
-          {batchTotal !== null && (
-            <span className="text-xs text-gray-500">{batchList.length}/{batchTotal}</span>
-          )}
         </div>
       </div>
+      
+      {/* Technical details collapsible */}
+      <details className="mb-4">
+        <summary className="cursor-pointer select-none text-sm text-gray-500 hover:text-gray-700">
+          Details
+        </summary>
+        <div className="mt-2 grid grid-cols-1 gap-2 text-sm text-gray-600 sm:grid-cols-3">
+          <div><span className="text-gray-400">Batch ID:</span> <span className="break-all font-mono text-xs">{batch.id}</span></div>
+          <div><span className="text-gray-400">Created:</span> {new Date(batch.createdAt).toLocaleString()}</div>
+          <div><span className="text-gray-400">Last synced:</span> {lastSyncedAt ? lastSyncedAt.toLocaleTimeString('en-US', { hour12: false }) : 'Never'}</div>
+          <div><span className="text-gray-400">Status:</span> {syncStatus === 'syncing' ? 'Syncing' : syncStatus === 'retrying' ? 'Retrying' : 'Idle'}</div>
+        </div>
+      </details>
 
       {/* Upload banner */}
       {uploadStats && (
@@ -1033,15 +1179,15 @@ function BatchPageInner() {
               className={`text-xs rounded-full px-2 py-1 border ${statusFilter === '' ? 'ring-2 ring-offset-1 ring-blue-400' : ''}`}
               onClick={() => setStatusFilter('')}
             >
-              {t.tasks.all} {getDisplayTasks(filterTombstones(serverTasks), sortBy, '').length}
+              {t.tasks.all} {mergedTasks.length}
             </button>
-            <StatusChips counts={aggregateCounts(getDisplayTasks(filterTombstones(serverTasks), sortBy, ''))} active={statusFilter} onSelect={(s) => setStatusFilter(s)} />
+            <StatusChips counts={aggregateCounts(OPTIMISTIC ? getDisplayTasks(filterTombstones(serverTasks), sortBy, '', optimisticTasks) : mergedTasks)} active={statusFilter} onSelect={(s) => setStatusFilter(s)} />
             {!editMode && (
               <>
                 <Button
                   variant="secondary"
                   onClick={retryFailed}
-                  disabled={!getDisplayTasks(filterTombstones(serverTasks), sortBy, statusFilter).some((t) => t.status === 'failed')}
+                  disabled={!mergedTasks.some((t) => t.status === 'failed')}
                 >
                   {t.actions.retryFailed}
                 </Button>
@@ -1135,13 +1281,13 @@ function BatchPageInner() {
                   {t.banners.syncFailedKeepLocal}
                 </div>
               )}
-              {getDisplayTasks(filterTombstones(serverTasks), sortBy, statusFilter).length === 0 ? (
+              {mergedTasks.length === 0 ? (
                 <div className="text-sm text-gray-500">{t.tips.noTasks}</div>
               ) : (
                 <>
                   {/* Filter hint when optimistic/running items are hidden by filter */}
                   {statusFilter && !['queued', 'running'].includes(statusFilter) &&
-                    getDisplayTasks(filterTombstones(serverTasks), sortBy, '').some(
+                    (OPTIMISTIC ? getDisplayTasks(filterTombstones(serverTasks), sortBy, '', optimisticTasks) : mergedTasks).some(
                       (t) => t.status === 'queued' || t.status === 'running',
                     ) && (
                       <div className="mb-2 text-xs text-gray-600 flex items-center gap-2">
@@ -1160,7 +1306,7 @@ function BatchPageInner() {
                             <input
                               type="checkbox"
                               onChange={(e) => {
-                                const ids = getDisplayTasks(filterTombstones(serverTasks), sortBy, statusFilter)
+                                const ids = mergedTasks
                                   .map((x) => x.id);
                                 const next = new Set(selectedIds);
                                 if (e.target.checked) ids.forEach((id) => next.add(id));
@@ -1179,8 +1325,16 @@ function BatchPageInner() {
                     </tr>
                     </thead>
                     <tbody>
-                      {getDisplayTasks(filterTombstones(serverTasks), sortBy, statusFilter).map((tRow) => (
-                    <tr key={tRow.id} className="border-t hover:bg-muted/40">
+                      {mergedTasks.map((tRow) => {
+                    const isOptimistic = tRow.ephemeral && tRow.id.startsWith('opt-');
+                    const statusText = isOptimistic ? 
+                      (tRow.status === 'queued' ? 'Uploading...' : 
+                       tRow.status === 'running' ? 'Creating task...' : 
+                       tRow.status === 'failed' ? 'Failed' : tRow.status) : 
+                      tRow.status;
+                    
+                    return (
+                    <tr key={tRow.id} className={`border-t hover:bg-muted/40 ${isOptimistic ? 'opacity-75' : ''}`}>
                       <td
                         className="p-2 font-mono cursor-pointer"
                         onClick={() => {
@@ -1188,7 +1342,7 @@ function BatchPageInner() {
                           if (!tRow.ephemeral) location.href = `/task/${tRow.id}?batch=${batch.id}`;
                         }}
                       >
-                        {tRow.id.slice(0, 8)}
+                        {isOptimistic ? '⏳ ' : ''}{tRow.id.slice(0, 8)}
                       </td>
                       {editMode && (
                         <td className="p-2">
@@ -1229,7 +1383,7 @@ function BatchPageInner() {
                                     : 'text-gray-500'
                           }`}
                         >
-                          {tRow.status}
+                          {statusText}
                           {tRow.status === 'failed' && !tRow.ephemeral && !editMode && (
                             <Button
                               variant="ghost"
@@ -1284,7 +1438,8 @@ function BatchPageInner() {
                         </td>
                       )}
                     </tr>
-                  ))}
+                    );
+                  })}
                     </tbody>
                   </table>
                   <div className="mt-3 flex justify-center">
