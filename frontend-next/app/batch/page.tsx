@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { StatusChips } from '@/components/ui/status-chips';
 import { ToastProvider, useToastLite } from '@/components/ui/toast-lite';
 import { fetchJSON } from '@/lib/apiClient';
+import { scheduleMutation } from '@/lib/tokenBucket';
 import { UploadManager } from '@/lib/uploadManager';
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { en as t } from '../../uiStrings/i18n/en';
@@ -217,7 +218,7 @@ function getDisplayTasks(server: Task[], sortBy: 'updatedAtDesc' | 'createdAtDes
     ephemeral: true,
     ephemeralAt: opt.startedAt,
   })) : [];
-  
+
   // Merge server and optimistic tasks
   const allTasks = [...(server || []), ...optimisticAsTasks];
   const mergedServer = mergeDisplayTasksById([], allTasks);
@@ -246,7 +247,7 @@ function BatchPageInner() {
   // Feature flag for optimistic rendering
   const qs = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
   const OPTIMISTIC = process.env.NEXT_PUBLIC_BATCH_OPTIMISTIC === '1' || qs.get('optimistic') === '1';
-  
+
   const { toast } = useToastLite();
   const [batch, setBatch] = useState<Batch | null>(null);
   const [urls, setUrls] = useState('');
@@ -943,9 +944,9 @@ function BatchPageInner() {
             if (tempId) {
               if (ok) {
                 // Set creating state with deadline
-                updateOptimisticTask(tempId, { 
+                updateOptimisticTask(tempId, {
                   status: 'creating',
-                  creatingDeadline: Date.now() + CREATION_TTL_MS 
+                  creatingDeadline: Date.now() + CREATION_TTL_MS
                 });
                 scheduleRefresh('upload-item-complete'); // coalesced soft refresh
               } else {
@@ -1145,7 +1146,7 @@ function BatchPageInner() {
           </select>
         </div>
       </div>
-      
+
       {/* Technical details collapsible */}
       <details className="mb-4">
         <summary className="cursor-pointer select-none text-sm text-gray-500 hover:text-gray-700">
@@ -1293,7 +1294,7 @@ function BatchPageInner() {
                     console.debug('[delete]', { ids, addTombstones: true });
                     setInlineBanner({ kind: 'deleted', count: ids.length });
                     setUndoBuffer(removed);
-                    
+
                     // Use bulk delete API for better performance and idempotency
                     try {
                       const response = await scheduleMutation(() => fetchJSON(`${API_BASE}/tasks/bulk-delete`, {
@@ -1305,7 +1306,7 @@ function BatchPageInner() {
                     } catch (e) {
                       console.warn('[bulk-delete] failed, falling back to individual deletes:', e);
                       // Fallback to individual deletes with Promise.allSettled to ignore 404s
-                      const deletePromises = ids.map((id) => 
+                      const deletePromises = ids.map((id) =>
                         scheduleMutation(() => fetchJSON(`${API_BASE}/tasks/${id}`, { method: 'DELETE', retries: 0 }))
                           .catch((err) => {
                             // Ignore errors (especially 404s) as DELETE should be idempotent
@@ -1315,7 +1316,7 @@ function BatchPageInner() {
                       );
                       await Promise.allSettled(deletePromises);
                     }
-                    
+
                     setTimeout(() => setInlineBanner(null), 5000);
                     replaceNextRefreshRef.current = true;
                     scheduleRefresh('bulk-delete');
@@ -1397,12 +1398,12 @@ function BatchPageInner() {
                     <tbody>
                       {mergedTasks.map((tRow) => {
                     const isOptimistic = tRow.ephemeral && tRow.id.startsWith('opt-');
-                    const statusText = isOptimistic ? 
-                      (tRow.status === 'queued' ? 'Uploading...' : 
-                       tRow.status === 'running' ? 'Creating task...' : 
-                       tRow.status === 'failed' ? 'Failed' : tRow.status) : 
+                    const statusText = isOptimistic ?
+                      (tRow.status === 'queued' ? 'Uploading...' :
+                       tRow.status === 'running' ? 'Creating task...' :
+                       tRow.status === 'failed' ? 'Failed' : tRow.status) :
                       tRow.status;
-                    
+
                     return (
                     <tr key={tRow.id} className={`border-t hover:bg-muted/40 ${isOptimistic ? 'opacity-75' : ''}`}>
                       <td
