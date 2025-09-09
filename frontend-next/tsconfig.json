@@ -20,6 +20,7 @@
       "@/lib/*": ["./lib/*"],
       "@/styles/*": ["./styles/*"],
       "@/utils/*": ["./utils/*"],
+      "@/uiStrings/*": ["./uiStrings/*"],
       "mksaas/*": ["../../src/*"]
     },
     "baseUrl": ".",

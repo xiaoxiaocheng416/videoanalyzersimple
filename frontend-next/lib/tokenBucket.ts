@@ -55,7 +55,7 @@ async function attemptWithRetry<T>(fn: MutationFn<T>): Promise<T> {
     try {
       const out = await fn();
       return out;
-    } catch (e) {
+    } catch (e: any) {
       lastErr = e;
       if (!shouldRetry(e)) break;
       stats.retried++;
