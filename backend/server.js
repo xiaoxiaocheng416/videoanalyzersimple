@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
+const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
 const app = express();
@@ -12,6 +13,7 @@ const upload = multer({
 });
 
 // Middleware - 明确允许跨域
+app.use(cookieParser());
 app.use(cors({
   origin: [
     'http://localhost:3005',
@@ -32,6 +34,10 @@ const videoController = require('./controllers/videoController');
 const mediaController = require('./controllers/mediaController');
 const batchesRouter = require('./routes/batches');
 const tasksCompatRouter = require('./routes/tasksCompat');
+
+// OPTIONS handlers for future export routes (M2)
+app.options('/api/export', (req, res) => res.sendStatus(204));
+app.options('/api/export/:id', (req, res) => res.sendStatus(204));
 
 // Routes
 app.post('/api/videos/upload', upload.single('video'), videoController.uploadVideo);
@@ -61,7 +67,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
   console.log(`🚀 服务器运行在端口 ${PORT}`);
   console.log(`📡 API 地址: http://localhost:${PORT}/api`);

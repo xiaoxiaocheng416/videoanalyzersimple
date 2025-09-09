@@ -70,9 +70,10 @@ router.post('/batches/:id/tasks/url', async (req, res) => {
   try {
     const batchId = req.params.id;
     const urls = Array.isArray(req.body?.urls) ? req.body.urls : [];
-    const uniq = Array.from(new Set(urls.map(u => String(u).trim()).filter(Boolean))).slice(0, 200);
+    // Allow duplicates - don't dedupe URLs
+    const validUrls = urls.map(u => String(u).trim()).filter(Boolean).slice(0, 200);
     const created = [];
-    for (const url of uniq) {
+    for (const url of validUrls) {
       const rec = await createTask(batchId, { kind: 'url', payload: { url } });
       created.push(rec);
       enqueue({ batchId, taskId: rec.id, analyze: async (task, onProgress, isCanceled) => {
