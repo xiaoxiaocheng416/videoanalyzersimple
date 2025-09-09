@@ -14,6 +14,7 @@ export type FetchJSONOptions = {
   retries?: number; // total attempts = retries + 1
   backoffMs?: number; // base backoff in ms (exponential)
   signal?: AbortSignal;
+  credentials?: RequestCredentials; // 'include', 'same-origin', 'omit'
 };
 
 const DEFAULTS = {
@@ -31,6 +32,7 @@ export async function fetchJSON<T = any>(url: string, opts: FetchJSONOptions = {
     retries = DEFAULTS.retries,
     backoffMs = DEFAULTS.backoffMs,
     signal,
+    credentials,
   } = opts;
 
   let attempt = 0;
@@ -49,7 +51,7 @@ export async function fetchJSON<T = any>(url: string, opts: FetchJSONOptions = {
         },
         body: body && !(body instanceof FormData) ? JSON.stringify(body) : body,
         signal: merged,
-        credentials: 'include',
+        ...(credentials && { credentials }),
       });
       clearTimeout(timeout);
       if (!resp.ok) {
