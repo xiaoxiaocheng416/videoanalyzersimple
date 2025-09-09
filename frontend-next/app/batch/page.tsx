@@ -23,6 +23,10 @@ const MAX_FILE_SIZE_MB = Number(process.env.NEXT_PUBLIC_MAX_FILE_MB || 500);
 const ACTIVE_WINDOW_HOURS = Number(process.env.NEXT_PUBLIC_BATCH_ACTIVE_WINDOW_HOURS || 24);
 const ACCEPT_VIDEO = ['video/', '.mp4', '.mov', '.webm', '.mkv'];
 
+// Batch refresh scheduler constants (single channel)
+const POLL_MS = 5000;
+const SOFT_WINDOW_MS = 1000; // 1s coalescing window
+
 type Batch = { id: string; title?: string; createdAt: string; status: string; counts: any };
 type Task = {
   id: string;
@@ -41,10 +45,11 @@ type Task = {
 
 type OptimisticTask = {
   tempId: string;
+  key: string; // unique file key: name__size__lastModified
   fileName: string;
   fileSize: number;
   fileLastModified: number;
-  status: 'uploading' | 'creating' | 'error';
+  status: 'queued' | 'uploading' | 'creating' | 'error';
   startedAt: number;
   creatingDeadline?: number; // Deadline for creating state before considering it failed
   progress?: number;
@@ -206,7 +211,7 @@ function getDisplayTasks(server: Task[], sortBy: 'updatedAtDesc' | 'createdAtDes
     batchId: '',
     kind: 'file' as const,
     payload: { localPath: opt.fileName },
-    status: opt.status === 'uploading' ? 'queued' : opt.status === 'creating' ? 'running' : opt.status === 'error' ? 'failed' : 'queued',
+    status: (opt.status === 'uploading' || opt.status === 'creating') ? 'running' : opt.status === 'error' ? 'failed' : 'queued',
     progress: opt.progress,
     updatedAt: new Date(opt.startedAt).toISOString(),
     ephemeral: true,
@@ -285,6 +290,15 @@ function BatchPageInner() {
   const replaceNextRefreshRef = useRef(false);
   const lastSoftRefreshRef = useRef<number>(0);
   const fileToTempIdMap = useRef<WeakMap<File, string>>(new WeakMap());
+  const keyToTempIdRef = useRef<Map<string, string>>(new Map());
+  const pendingKeysRef = useRef<Set<string>>(new Set());
+
+  // Single-channel scheduler refs
+  const inFlightRef = useRef<AbortController | null>(null);
+  const scheduledRef = useRef<number | null>(null);
+  const lastRunAtRef = useRef(0);
+  const runningRef = useRef(false);
+  const onceSchedulerRef = useRef(false);
 
   const addTombstones = useCallback((ids: string[], ttlMs = 60000) => {
     const until = Date.now() + ttlMs;
@@ -311,25 +325,34 @@ function BatchPageInner() {
   );
 
   // Optimistic task management functions
-  const addOptimisticTask = useCallback((file: File): string => {
+  const addOptimisticTask = useCallback((file: File, initialStatus: 'queued' | 'uploading' = 'queued'): string => {
     if (!OPTIMISTIC) return '';
+    const key = `${file.name}__${file.size}__${file.lastModified}`;
+    // Reinforced guard: avoid duplicate placeholders
+    const exists = Array.from(optimisticTasks.values()).some((t) => t.key === key && (t.status === 'queued' || t.status === 'uploading' || t.status === 'creating'));
+    if (exists) {
+      console.debug('[dedupe-skip][opt]', { key });
+      return keyToTempIdRef.current.get(key) || '';
+    }
     const tempId = `opt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     setOptimisticTasks((prev) => {
       const next = new Map(prev);
       next.set(tempId, {
         tempId,
+        key,
         fileName: file.name,
         fileSize: file.size,
         fileLastModified: file.lastModified,
-        status: 'uploading',
+        status: initialStatus,
         startedAt: Date.now(),
         progress: 0,
       });
       return next;
     });
     fileToTempIdMap.current.set(file, tempId);
+    keyToTempIdRef.current.set(key, tempId);
     return tempId;
-  }, [OPTIMISTIC]);
+  }, [OPTIMISTIC, optimisticTasks]);
 
   const updateOptimisticTask = useCallback((tempId: string, updates: Partial<OptimisticTask>) => {
     if (!OPTIMISTIC) return;
@@ -347,63 +370,96 @@ function BatchPageInner() {
     if (!OPTIMISTIC) return;
     setOptimisticTasks((prev) => {
       const next = new Map(prev);
+      const t = next.get(tempId);
+      if (t) {
+        // also clear key mapping
+        keyToTempIdRef.current.delete(t.key);
+      }
       next.delete(tempId);
       return next;
     });
   }, [OPTIMISTIC]);
 
-  // Soft refresh with throttling for single file completion
-  const softRefresh = useCallback(async () => {
-    if (!OPTIMISTIC || !batch) return;
+  // Single-channel runOnce: only fetch tasks (read-only) and reconcile
+  const runOnce = useCallback(async () => {
+    if (!batch) return;
+    if (runningRef.current) return; // serialize
     const now = Date.now();
-    if (now - lastSoftRefreshRef.current < 400) return; // Throttle to 400ms
-    lastSoftRefreshRef.current = now;
-    
-    // Just fetch tasks without full batch refresh
+    if (now - lastRunAtRef.current < 300) return; // micro jitter guard
+    runningRef.current = true;
+    inFlightRef.current?.abort();
+    const ctrl = new AbortController();
+    inFlightRef.current = ctrl;
+    console.debug('[batch] tick refresh', { at: now, batchId: batch.id });
+
     try {
+      // Only GET tasks for soft refresh channel
       const url = new URL(`${API_BASE}/batches/${batch.id}/tasks`, location.origin);
       if (statusFilter) url.searchParams.set('status', statusFilter);
       url.searchParams.set('limit', String(tasksLimit));
-      
-      const tasksResp = await fetchJSON<{ tasks: Task[] }>(url.toString(), {
-        timeoutMs: 3000,
-        retries: 0,
-        credentials: 'include', // Ensure cookies are sent
-      });
-      
+      const tasksResp = await fetchJSON<{ tasks: Task[] }>(url.toString(), { signal: ctrl.signal });
+
       if (tasksResp?.tasks) {
-        setServerTasks(tasksResp.tasks);
-        // Reconcile: match optimistic tasks with server tasks
-        optimisticTasks.forEach((optTask, tempId) => {
-          if (optTask.status === 'creating') {
-            // Try to match by file name and size
-            const fileName = optTask.fileName;
-            const matched = tasksResp.tasks.find((serverTask) => {
-              const serverFileName = serverTask.payload?.localPath?.split('/').pop() || '';
-              // Match by name and size (if available)
-              return serverFileName === fileName;
-              // TODO: Add size matching when server provides it
-            });
-            
-            if (matched) {
-              // Found match, remove optimistic task
-              removeOptimisticTask(tempId);
-            } else {
-              // No match found, check if deadline exceeded
-              const deadline = optTask.creatingDeadline || (optTask.startedAt + CREATION_TTL_MS);
-              if (Date.now() > deadline) {
-                // Only mark as error if deadline exceeded
-                updateOptimisticTask(tempId, { status: 'error' });
+        const incoming = tasksResp.tasks || [];
+        if (replaceNextRefreshRef.current) {
+          setServerTasks(incoming);
+          replaceNextRefreshRef.current = false;
+        } else {
+          setServerTasks((prev) => mergeDisplayTasksById(prev, incoming));
+        }
+        setInitialLoading(false);
+        setLastError(null);
+        setAuthExpired(false);
+
+        // Reconcile optimistic only within TTL
+        if (OPTIMISTIC) {
+          optimisticTasks.forEach((optTask, tempId) => {
+            if (optTask.status === 'creating') {
+              const fileName = optTask.fileName;
+              const matched = incoming.find((serverTask) => {
+                const serverFileName = serverTask.payload?.localPath?.split('/').pop() || '';
+                return serverFileName === fileName;
+              });
+              if (matched) {
+                removeOptimisticTask(tempId);
+              } else {
+                const deadline = optTask.creatingDeadline || (optTask.startedAt + CREATION_TTL_MS);
+                if (Date.now() > deadline) updateOptimisticTask(tempId, { status: 'error' });
               }
-              // Otherwise keep it in creating state
             }
-          }
-        });
+          });
+        }
+
+        setLastSyncedAt(new Date());
+        setSyncStatus('idle');
+      } else {
+        console.warn('[batch] tasks refresh failed - keeping existing data');
+        if (initialLoading) setInitialLoading(false);
+        setLastError(t.banners.syncFailedKeepLocal);
+        setSyncStatus('retrying');
       }
-    } catch (e) {
-      console.debug('[softRefresh] error:', e);
+    } catch (e: any) {
+      if (e?.code === 'AUTH_EXPIRED') setAuthExpired(true);
+      console.warn('[batch] runOnce error', e);
+      if (initialLoading) setInitialLoading(false);
+      setLastError(t.banners.syncFailedKeepLocal);
+      setSyncStatus('retrying');
+    } finally {
+      runningRef.current = false;
+      lastRunAtRef.current = Date.now();
     }
-  }, [OPTIMISTIC, batch, statusFilter, tasksLimit, optimisticTasks, removeOptimisticTask, updateOptimisticTask]);
+  }, [batch, statusFilter, tasksLimit, OPTIMISTIC, optimisticTasks, removeOptimisticTask, updateOptimisticTask, initialLoading]);
+
+  const scheduleRefresh = useCallback((reason: string) => {
+    const now = Date.now();
+    console.debug('[batch] softRefresh', { at: now, reason });
+    if (scheduledRef.current) clearTimeout(scheduledRef.current);
+    const delay = Math.max(0, SOFT_WINDOW_MS - (now - lastRunAtRef.current));
+    scheduledRef.current = window.setTimeout(() => {
+      scheduledRef.current = null;
+      runOnce();
+    }, delay);
+  }, [runOnce]);
 
   // Helper: per-user localStorage key
   const getUserKey = useCallback(() => {
@@ -704,35 +760,28 @@ function BatchPageInner() {
         // IMPORTANT: Never clear existing state on error
         // Auto-retry after 2 seconds on error
         if (rid === latestReq.current) {
-          setTimeout(() => refresh(false, false), 2000);
+          setTimeout(() => scheduleRefresh('auto-retry'), 2000);
         }
       }
     },
     [batch, statusFilter, tasksLimit, initialLoading],
   );
 
-  // Poll tasks (5s) - always active as fallback
+  // Poll tasks (5s) via single scheduler; pause when hidden
   useEffect(() => {
-    const t = setInterval(() => {
-      if (!document.hidden) {
-        refresh(false, false);
-        
-        // Check optimistic task deadlines
-        if (OPTIMISTIC) {
-          const now = Date.now();
-          optimisticTasks.forEach((task, tempId) => {
-            if (task.status === 'creating') {
-              const deadline = task.creatingDeadline || (task.startedAt + CREATION_TTL_MS);
-              if (now > deadline) {
-                updateOptimisticTask(tempId, { status: 'error' });
-              }
-            }
-          });
-        }
-      }
-    }, 5000);
-    return () => clearInterval(t);
-  }, [refresh, OPTIMISTIC, optimisticTasks, updateOptimisticTask]);
+    if (onceSchedulerRef.current) return;
+    onceSchedulerRef.current = true;
+    let timer: any = null;
+    const tick = () => scheduleRefresh('interval');
+    const start = () => { if (!timer) timer = setInterval(tick, POLL_MS); };
+    const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
+    const onVis = () => {
+      if (document.hidden) stop(); else { start(); scheduleRefresh('visibility'); }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    start();
+    return () => { stop(); document.removeEventListener('visibilitychange', onVis); inFlightRef.current?.abort(); };
+  }, [scheduleRefresh]);
 
   // Cleanup expired tombstones
   useEffect(() => {
@@ -750,34 +799,19 @@ function BatchPageInner() {
     return () => clearInterval(interval);
   }, []);
 
-  // Immediate fetch when batch or filter changes
+  // Immediate fetch when batch or filter changes → single scheduler
   useEffect(() => {
-    if (FEATURES.FAST_REFRESH) {
-      refresh(true, false); // Immediate refresh
-    } else {
-      refresh(false, false);
-    }
-  }, [batch?.id, statusFilter, tasksLimit]);
+    if (batch?.id) scheduleRefresh('init');
+  }, [batch?.id, statusFilter, tasksLimit, scheduleRefresh]);
 
-  // Refresh on tab focus/visibility change
+  // Focus/visibility → schedule single soft refresh
   useEffect(() => {
-    const onFocus = () => {
-      if (FEATURES.FAST_REFRESH) {
-        refresh(true, true); // Immediate refresh on focus
-      }
-    };
-    const onVisible = () => {
-      if (!document.hidden && FEATURES.FAST_REFRESH) {
-        refresh(true, true); // Immediate refresh on visible
-      }
-    };
+    const onFocus = () => { if (FEATURES.FAST_REFRESH) scheduleRefresh('focus'); };
+    const onVisible = () => { if (!document.hidden && FEATURES.FAST_REFRESH) scheduleRefresh('visibility'); };
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  }, [refresh]);
+    return () => { window.removeEventListener('focus', onFocus); document.removeEventListener('visibilitychange', onVisible); };
+  }, [scheduleRefresh]);
 
   // Idle Recovery: force full refresh after idle/outdated
   useEffect(() => {
@@ -787,7 +821,7 @@ function BatchPageInner() {
       if (!document.hidden) {
         const idle = Date.now() - lastInteractionAtRef.current;
         const outdated = lastSyncedAt ? Date.now() - lastSyncedAt.getTime() > 30_000 : true;
-        if (idle > IDLE_MS || outdated) refresh(true, true);
+        if (idle > IDLE_MS || outdated) scheduleRefresh('idle-recovery');
       }
     };
     window.addEventListener('click', touch);
@@ -800,16 +834,27 @@ function BatchPageInner() {
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
     };
-  }, [refresh, lastSyncedAt]);
+  }, [scheduleRefresh, lastSyncedAt]);
 
   // File selection: only queue, do not upload
   const handleFileSelect = (ev: React.ChangeEvent<HTMLInputElement>) => {
     const list = ev.target.files;
     if (!list || list.length === 0) return;
     const files = Array.from(list);
+    // Pending key dedupe: name+size+lastModified
+    const willUse: File[] = [];
+    for (const f of files) {
+      const key = `${f.name}__${f.size}__${f.lastModified}`;
+      if (pendingKeysRef.current.has(key)) {
+        console.debug('[dedupe-skip][file]', { key });
+        continue;
+      }
+      pendingKeysRef.current.add(key);
+      willUse.push(f);
+    }
     const { valid, rejected, reasons } = validateAndDedupFiles(
       // Dedup with existing pendingFiles by name+size
-      files.filter((f) => !pendingFiles.some((pf) => pf.name === f.name && pf.size === f.size)),
+      willUse.filter((f) => !pendingFiles.some((pf) => pf.name === f.name && pf.size === f.size)),
     );
     if (rejected > 0) {
       const msg = reasons.join('; ').slice(0, 200);
@@ -823,24 +868,43 @@ function BatchPageInner() {
     if (deduped.length < valid.length) {
       toast({ variant: 'warning', title: t.validation.filteredTitle, description: t.validation.dedupTip(valid.length - deduped.length) });
     }
-    if (deduped.length > 0) setPendingFiles((prev) => [...prev, ...deduped]);
+    if (deduped.length > 0) {
+      // Create optimistic placeholders immediately at enqueue time
+      deduped.forEach((f) => {
+        addOptimisticTask(f, 'queued');
+      });
+      setPendingFiles((prev) => [...prev, ...deduped]);
+    }
     ev.target.value = '';
   };
 
   const removePending = (name: string, size: number) => {
     setPendingFiles((prev) => prev.filter((f) => !(f.name === name && f.size === size)));
+    // Also clear from pendingKeys
+    const candidates = Array.from(pendingKeysRef.current);
+    for (const k of candidates) {
+      if (k.startsWith(`${name}__${size}__`)) pendingKeysRef.current.delete(k);
+    }
+    // Remove queued optimistic placeholders matching this file
+    const toRemove: string[] = [];
+    optimisticTasks.forEach((opt, tempId) => {
+      if (opt.fileName === name && opt.fileSize === size && opt.status === 'queued') {
+        toRemove.push(tempId);
+      }
+    });
+    toRemove.forEach((tid) => removeOptimisticTask(tid));
   };
 
-  const clearPending = () => setPendingFiles([]);
-
-  const scheduleRefresh = () => {
-    if (refreshThrottleRef.current) return;
-    refreshThrottleRef.current = setTimeout(() => {
-      refresh(true, true);
-      if (refreshThrottleRef.current) clearTimeout(refreshThrottleRef.current);
-      refreshThrottleRef.current = null;
-    }, 350);
+  const clearPending = () => {
+    setPendingFiles([]);
+    pendingKeysRef.current.clear();
+    // Remove all queued optimistic placeholders
+    const toRemove: string[] = [];
+    optimisticTasks.forEach((opt, tempId) => { if (opt.status === 'queued') toRemove.push(tempId); });
+    toRemove.forEach((tid) => removeOptimisticTask(tid));
   };
+
+  // scheduleRefresh unified above (single-channel)
 
   // Start upload with optimistic tasks
   const startUpload = async () => {
@@ -865,9 +929,10 @@ function BatchPageInner() {
         onUpdate: (active, queued, done) => setUploadStats((s) => ({ active, queued, done, total: s?.total || active + queued + done })),
         onItemStart: (item) => {
           setActiveUploads((prev) => [...prev.filter((x) => x.id !== item.id), { id: item.id, name: item.file.name }]);
-          // Add optimistic task when upload starts
+          // Update placeholder to uploading when upload actually starts
           if (OPTIMISTIC) {
-            const tempId = addOptimisticTask(item.file);
+            const tempId = fileToTempIdMap.current.get(item.file);
+            if (tempId) updateOptimisticTask(tempId, { status: 'uploading' });
           }
         },
         onItemComplete: (item, ok, error) => {
@@ -882,11 +947,15 @@ function BatchPageInner() {
                   status: 'creating',
                   creatingDeadline: Date.now() + CREATION_TTL_MS 
                 });
-                softRefresh(); // Soft refresh to get the real task
+                scheduleRefresh('upload-item-complete'); // coalesced soft refresh
               } else {
                 // Only mark as error for actual upload failures
                 updateOptimisticTask(tempId, { status: 'error' });
               }
+              // Clean mappings after completion
+              fileToTempIdMap.current.delete(item.file);
+              const k = `${item.file.name}__${item.file.size}__${item.file.lastModified}`;
+              keyToTempIdRef.current.delete(k);
             }
           }
         },
@@ -896,8 +965,8 @@ function BatchPageInner() {
           if (failed > 0) {
             toast({ variant: 'warning', title: 'Upload finished', description: `${succeeded} succeeded, ${failed} failed` });
           }
-          // Single force refresh after all uploads complete
-          refresh(true, true);
+          // Coalesced refresh after uploads complete
+          scheduleRefresh('upload-complete');
         },
       },
     });
@@ -905,6 +974,7 @@ function BatchPageInner() {
     mgr.enqueue(items);
     await mgr.start();
     setPendingFiles([]);
+    pendingKeysRef.current.clear();
   };
 
   const addUrls = async () => {
@@ -940,7 +1010,7 @@ function BatchPageInner() {
     } catch (e: any) {
       toast({ variant: 'destructive', title: t.validation.addFailed, description: e?.message || 'Please try again later' });
     }
-    await refresh(true, true);
+    scheduleRefresh('url-added');
   };
 
   // removed legacy uploadFiles: replaced by handleFileSelect + startUpload
@@ -952,14 +1022,14 @@ function BatchPageInner() {
       await fetchJSON(`${API_BASE}/tasks/${t.id}/retry`, { method: 'POST', retries: 1, backoffMs: 500 }).catch(() => null);
     }
     // Force immediate refresh after retry
-    await refresh(true, true);
+    scheduleRefresh('retry-failed');
   };
 
   // Single task retry
   const retrySingleTask = async (taskId: string) => {
     await fetchJSON(`${API_BASE}/tasks/${taskId}/retry`, { method: 'POST' }).catch(() => null);
     // Force immediate refresh after retry
-    await refresh(true, true);
+    scheduleRefresh('retry-single');
   };
 
   // Enhanced export with success-only filter
@@ -1019,8 +1089,8 @@ function BatchPageInner() {
     params.set('batch', id);
     history.replaceState(null, '', `${location.pathname}?${params.toString()}`);
 
-    // Immediate refresh after batch switch
-    await refresh(true, true);
+    // Immediate refresh after batch switch (coalesced)
+    scheduleRefresh('batch-switch');
   };
 
   if (!batch) {
@@ -1060,7 +1130,7 @@ function BatchPageInner() {
           <h1 className="text-2xl font-semibold">{t.batch.title}</h1>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="secondary" onClick={() => refresh(true, true)}>{t.header.refresh}</Button>
+          <Button variant="secondary" onClick={() => scheduleRefresh('manual-refresh')}>{t.header.refresh}</Button>
           <select
             className="border rounded px-2 py-1 text-sm"
             onChange={(e) => selectBatch(e.target.value)}
@@ -1226,17 +1296,17 @@ function BatchPageInner() {
                     
                     // Use bulk delete API for better performance and idempotency
                     try {
-                      const response = await fetchJSON(`${API_BASE}/tasks/bulk-delete`, {
+                      const response = await scheduleMutation(() => fetchJSON(`${API_BASE}/tasks/bulk-delete`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ ids })
-                      });
+                      }));
                       console.log('[bulk-delete] result:', response);
                     } catch (e) {
                       console.warn('[bulk-delete] failed, falling back to individual deletes:', e);
                       // Fallback to individual deletes with Promise.allSettled to ignore 404s
                       const deletePromises = ids.map((id) => 
-                        fetchJSON(`${API_BASE}/tasks/${id}`, { method: 'DELETE' })
+                        scheduleMutation(() => fetchJSON(`${API_BASE}/tasks/${id}`, { method: 'DELETE', retries: 0 }))
                           .catch((err) => {
                             // Ignore errors (especially 404s) as DELETE should be idempotent
                             console.debug(`[delete] ${id} failed (ignored):`, err);
@@ -1248,7 +1318,7 @@ function BatchPageInner() {
                     
                     setTimeout(() => setInlineBanner(null), 5000);
                     replaceNextRefreshRef.current = true;
-                    await refresh(true, true);
+                    scheduleRefresh('bulk-delete');
                     setBatchDeleteConfirm(false);
                   }}
                 >
@@ -1425,13 +1495,13 @@ function BatchPageInner() {
                                 setInlineBanner({ kind: 'deleted', count: 1 });
                                 setTimeout(() => setInlineBanner(null), 5000);
                                 // Single delete - idempotent, ignore errors
-                                await fetchJSON(`${API_BASE}/tasks/${tRow.id}`, { method: 'DELETE' })
+                                await scheduleMutation(() => fetchJSON(`${API_BASE}/tasks/${tRow.id}`, { method: 'DELETE', retries: 0 }))
                                   .catch((err) => {
                                     // Ignore errors as DELETE is now idempotent (always returns 204)
                                     console.debug(`[delete] single delete ${tRow.id} error (ignored):`, err);
                                   });
                                 replaceNextRefreshRef.current = true;
-                                await refresh(true, true);
+                                scheduleRefresh('delete-single');
                               }}
                             />
                           )}
@@ -1448,7 +1518,7 @@ function BatchPageInner() {
                       onClick={async () => {
                         setLoadingMore(true);
                         setTasksLimit((n) => n + 100);
-                        await refresh(true, true);
+                        scheduleRefresh('load-more');
                         setLoadingMore(false);
                       }}
                     >

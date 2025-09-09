@@ -36,11 +36,13 @@ export class UploadManager {
   private readonly backoffSchedule = [2000, 4000, 8000];
   private readonly events: UploadEvents;
   private readonly uploadUrl: string;
+  private readonly requestWrapper?: <T>(fn: () => Promise<T>) => Promise<T>;
 
-  constructor(params: { url: string; concurrency?: number; events?: UploadEvents }) {
+  constructor(params: { url: string; concurrency?: number; events?: UploadEvents; requestWrapper?: <T>(fn: () => Promise<T>) => Promise<T> }) {
     this.uploadUrl = params.url;
     this.concurrency = Math.max(1, Math.min(5, params.concurrency || 3));
     this.events = params.events || {};
+    this.requestWrapper = params.requestWrapper;
   }
 
   get isRunning() {
@@ -155,7 +157,12 @@ export class UploadManager {
         const fd = new FormData();
         fd.append('files', item.file);
         if (item.clientToken) fd.append('clientToken', item.clientToken);
-        await fetchJSON(this.uploadUrl, { method: 'POST', body: fd, timeoutMs: 60000, retries: 0, signal });
+        const doReq = () => fetchJSON(this.uploadUrl, { method: 'POST', body: fd, timeoutMs: 60000, retries: 0, signal });
+        if (this.requestWrapper) {
+          await this.requestWrapper(doReq);
+        } else {
+          await doReq();
+        }
         return true;
       } catch (e: any) {
         const aborted = signal.aborted || e?.code === 'ABORTED';
