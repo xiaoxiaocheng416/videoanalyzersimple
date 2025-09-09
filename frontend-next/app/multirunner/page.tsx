@@ -59,6 +59,15 @@ type Task = {
   ephemeralAt?: number; // epoch ms
 };
 
+// Minimal type for console sampling to avoid implicit any
+type MRTaskLite = {
+  id: string;
+  remoteId?: string;
+  url?: string;
+  fileName?: string;
+  status?: string;
+};
+
 export default function MultirunnerPage() {
   return (
     <ToastProvider>
@@ -606,9 +615,18 @@ function MultirunnerPageInner() {
         if (tasksResp && (tasksResp as any).tasks) {
           const json = tasksResp as any;
           const incoming = json.tasks || [];
-          console.debug('[mr] listTasks -> items=%d total=%d sampleIds=%o',
-            json.items?.length || json.tasks?.length, json.total,
-            (json.items || json.tasks)?.slice(0,5).map(x => ({id:x.id, remoteId:x.remoteId, url:x.url, file:x.fileName, status:x.status}))
+          const list = (json.items ?? json.tasks ?? []) as MRTaskLite[];
+          console.debug(
+            '[mr] listTasks -> items=%d total=%d sample=%o',
+            list.length,
+            json.total,
+            list.slice(0, 5).map(({ id, remoteId, url, fileName, status }: MRTaskLite) => ({
+              id,
+              remoteId,
+              url,
+              file: fileName,
+              status,
+            })),
           );
           console.debug('[mr] before-merge local=%d server=%d', serverTasks.length, incoming.length);
           if (replaceNextRefreshRef.current) {
